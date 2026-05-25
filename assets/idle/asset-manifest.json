@@ -1,0 +1,23 @@
+{
+  "generation_mode": "built-in image_gen",
+  "style": "2D idle game icons",
+  "atlas": "assets/idle/icons/atlas-source.png",
+  "icons": [
+    "assets/idle/icons/desk.png",
+    "assets/idle/icons/idea.png",
+    "assets/idle/icons/budget.png",
+    "assets/idle/icons/reputation.png",
+    "assets/idle/icons/sensor.png",
+    "assets/idle/icons/motor.png",
+    "assets/idle/icons/gear.png",
+    "assets/idle/icons/battery.png",
+    "assets/idle/icons/router.png",
+    "assets/idle/icons/server.png",
+    "assets/idle/icons/solar.png",
+    "assets/idle/icons/cart.png",
+    "assets/idle/icons/tools.png",
+    "assets/idle/icons/data.png",
+    "assets/idle/icons/eco.png",
+    "assets/idle/icons/incident.png"
+  ]
+}

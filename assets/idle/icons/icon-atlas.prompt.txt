@@ -1,0 +1,5 @@
+Use case: educational 2D idle game assets.
+Asset type: 4x4 icon atlas for a French middle-school technology idle game.
+Icons: technology classroom desk, idea light bulb, budget coins, reputation star, ultrasonic sensor, DC motor, gear, battery, network router, server, solar panel, prototype cart, repair tools, data packets, eco material, incident alarm.
+Style: flat 2D illustration with slight depth, colorful, readable, game UI icon quality, suitable for 12-year-old students.
+Constraints: exact 4 rows by 4 columns, no text, no numbers, no letters, no people, no logos, no watermark, no Three.js or 3D render look.
