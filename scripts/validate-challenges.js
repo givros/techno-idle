@@ -3,19 +3,24 @@ const path = require("path");
 const vm = require("vm");
 
 const root = path.resolve(__dirname, "..");
+const i18nPath = path.join(root, "js2d", "i18n.js");
 const challengePath = path.join(root, "js2d", "challenges.js");
+const i18nCode = fs.readFileSync(i18nPath, "utf8");
 const code = fs.readFileSync(challengePath, "utf8");
 const context = { window: {} };
 
 vm.createContext(context);
+vm.runInContext(i18nCode, context, { filename: i18nPath });
 vm.runInContext(code, context, { filename: challengePath });
 
 const bank = context.window.TechnoChallengeBank;
+const i18n = context.window.TechnoI18n;
 const errors = [];
 const warnings = [];
 
 const validLevels = ["5e", "4e", "3e"];
 const validResourceKeys = new Set(["learners", "material", "teachers", "resources", "mastery", "motivation", "disorder", "badges"]);
+const englishLeftoverPattern = /\b(un|une|des|le|la|les|donnee|donnees|energie|eleve|choisir|verifier|avec|dans|pour|lors|chaine|systeme|defi|reponse|vrai|faux|classement|seance|fonction|besoin|roue|frein|programme|mesurer|traiter|communiquer|alimenter|convertir|transmettre|engrenage|frottement|vitesse|affichee|ecran|utilisateur|criteres|afficher|definir|pertes|retour|lire|envoyer|ecrire|algorithme|contraintes|argumenter|mecanisme|mais|adapte|traitement|quand|couleur|deux|fois|interne|selon|frottements|allume|eteindre|objet|inutile|besoins|repeter|jamais|declencheur|diffuser|depart|analyser|tenir|compte|reel|reelle|memoriser|recoit|mauvais|alignements|entrainement|revoir|freiner|freinage|autorisations|laisser|tout|chauffe|beaucoup|moteurs|comparaison|recue|perdue|fonctionnent|meme|multiplier|demarre|touche|augmenter|entree|fournit|marche|puis|executer|avance|tourne|vehicule|freine|sous|pluie|pneu|maniere|moyen|differents|trajet|critere|copier|sans|securite|publier|renommer|equilibrer|charger|nouvelle|courant|bouge|physiquement|consomme|stockee|transmise|panneau|ressort|vieux|calculer|peuvent|creer|classee|graphique|texte|postes)\b|l'|n'ont|s'allume|quelqu/i;
 
 function fail(condition, message) {
   if (!condition) errors.push(message);
@@ -60,6 +65,31 @@ function checkChoices(choices, label, id, expectedMinimum = 2) {
       labels.add(choice.label);
     }
     fail(typeof choice?.correct === "boolean", `${id}: ${label}[${index}].correct doit etre booleen`);
+  });
+}
+
+function challengeTexts(challenge) {
+  return [
+    challenge?.title,
+    challenge?.prompt,
+    challenge?.coursePoint,
+    challenge?.item,
+    ...(challenge?.choices || []).flatMap((choice) => [choice?.label, choice?.feedback]),
+    ...(challenge?.categories || []).flatMap((choice) => [choice?.label, choice?.feedback]),
+    ...(challenge?.steps || []),
+    ...(challenge?.pool || []).map((step) => step?.label)
+  ].filter(Boolean);
+}
+
+function checkEnglishLocalization(challenge, id) {
+  fail(Boolean(i18n?.challenge), "TechnoI18n.challenge introuvable");
+  if (!i18n?.challenge) return;
+  const localized = i18n.challenge(challenge, "en");
+  checkText(localized?.title, "title en", id);
+  checkText(localized?.prompt, "prompt en", id);
+  checkText(localized?.coursePoint, "coursePoint en", id);
+  challengeTexts(localized).forEach((text) => {
+    fail(!englishLeftoverPattern.test(text), `${id}: traduction anglaise suspecte (${text})`);
   });
 }
 
@@ -116,6 +146,8 @@ if (bank?.all && bank?.themes && bank?.typeIds) {
     } else {
       checkChoices(challenge.choices, "choices", id, challenge.type === "trueFalse" ? 2 : 3);
     }
+
+    checkEnglishLocalization(challenge, id);
   });
 
   bank.themes.forEach((theme) => {

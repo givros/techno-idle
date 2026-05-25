@@ -1,5 +1,7 @@
 (function () {
   const STORAGE_KEY = "techno-cycle-4-manager.v1";
+  const LANG_STORAGE_KEY = "techno-cycle-4-manager.lang";
+  const I18N = window.TechnoI18n;
 
   const icon = (name) => `./assets/idle/icons/${name}.png`;
 
@@ -26,6 +28,41 @@
     classroomHero: "./assets/home/classroom-hero.png",
     studentSprites: Array.from({ length: 16 }, (_, index) => `./assets/students/processed/student-${index + 1}.png`)
   };
+
+  let currentLang = loadLanguage();
+
+  function loadLanguage() {
+    try {
+      return I18N?.normalizeLang(localStorage.getItem(LANG_STORAGE_KEY)) || "fr";
+    } catch {
+      return "fr";
+    }
+  }
+
+  function t(key, vars = {}) {
+    return I18N?.t(currentLang, key, vars) || key;
+  }
+
+  function tr(collection, item, field) {
+    return I18N?.entity(currentLang, collection, item.id, field, item[field]) || item[field];
+  }
+
+  function trById(collection, id, field, fallback = "") {
+    return I18N?.entity(currentLang, collection, id, field, fallback) || fallback;
+  }
+
+  function resourceName(key, count = 1) {
+    return I18N?.resource(currentLang, key, count) || key;
+  }
+
+  function localizeChallenge(challenge) {
+    return I18N?.challenge(challenge, currentLang) || challenge;
+  }
+
+  function setLanguageChrome() {
+    document.documentElement.lang = currentLang;
+    document.title = t("appTitle");
+  }
 
   const SPACES = [
     {
@@ -164,12 +201,13 @@
   const MAX_CLASSROOMS = 6;
   const EQUIPMENT_CYCLE = ["computer", "tablet", "tools", "sensor", "energy", "computer"];
 
-  function defaultState(playerName = "Eleve techno", level = "5e") {
-    const cleanName = String(playerName || "").trim() || "Eleve techno";
+  function defaultState(playerName = t("defaultPlayer"), level = "5e") {
+    const cleanName = String(playerName || "").trim() || t("defaultPlayer");
     const cleanLevel = ["5e", "4e", "3e"].includes(level) ? level : "5e";
     return {
       playerName: cleanName,
       level: cleanLevel,
+      lang: currentLang,
       resources: { learners: 0, material: 0, teachers: 0, resources: 0, mastery: 0, motivation: 80, disorder: 0 },
       badges: 0,
       spaces: Object.fromEntries(SPACES.map((space) => [
@@ -182,7 +220,7 @@
       knowledge: {},
       stats: { challengesSolved: 0, challengeAttempts: 0, totalMastery: 0, recentChallenges: [] },
       lastChallengeAt: Date.now(),
-      log: [`Bienvenue ${cleanName} : le labo techno ${cleanLevel} demarre a zero.`],
+      log: [t("logWelcome", { name: cleanName, level: cleanLevel })],
       createdAt: Date.now(),
       lastTickAt: Date.now()
     };
@@ -213,6 +251,7 @@
         spaces: { ...base.spaces, ...saved.spaces },
         recruits: { ...base.recruits, ...saved.recruits },
         classrooms: { ...base.classrooms, ...saved.classrooms },
+        lang: currentLang,
         knowledge: { ...base.knowledge, ...saved.knowledge },
         stats: { ...base.stats, ...saved.stats },
         students: sanitizeStudents(saved.students),
@@ -412,51 +451,32 @@
   }
 
   function costText(cost) {
-    const labels = {
-      learners: ["eleve", "eleves"],
-      material: ["piece", "pieces"],
-      teachers: ["mentor", "mentors"],
-      resources: ["fiche", "fiches"],
-      mastery: ["savoir-faire", "savoir-faire"]
-    };
     const parts = Object.entries(cost).filter(([, value]) => value > 0).map(([key, value]) => {
-      const label = labels[key] ? labels[key][value > 1 ? 1 : 0] : key;
-      return `${format(value)} ${label}`;
+      return `${format(value)} ${resourceName(key, value)}`;
     });
-    return parts.length ? parts.join(" + ") : "gratuit";
+    return parts.length ? parts.join(" + ") : t("free");
   }
 
   function requirementText(requirements = {}) {
-    return `${costText(requirements)} requis`;
+    return t("required", { value: costText(requirements) });
   }
 
   function effectText(effect = {}) {
-    const labels = {
-      learners: "eleves",
-      material: "pieces",
-      teachers: "mentors",
-      resources: "fiches",
-      mastery: "savoir-faire",
-      motivation: "motivation",
-      disorder: "agitation",
-      badges: "badges"
-    };
     const parts = Object.entries(effect).filter(([, value]) => value !== 0).map(([key, value]) => {
       const sign = value > 0 ? "+" : "-";
       const display = Math.abs(value) < 1 ? Math.abs(value).toFixed(1) : format(Math.abs(value));
-      return `${sign}${display} ${labels[key] || key}`;
+      return `${sign}${display} ${resourceName(key, Math.abs(value))}`;
     });
-    return parts.length ? parts.join(" - ") : "aucun changement";
+    return parts.length ? parts.join(" - ") : t("noEffect");
   }
 
   function productionText(production) {
-    const labels = { learners: "eleves", material: "pieces", teachers: "mentors", resources: "fiches", mastery: "savoir-faire", motivation: "motivation", disorder: "agitation" };
-    return Object.entries(production).map(([key, value]) => `${value > 0 ? "+" : ""}${value}/s ${labels[key]}`).join(" - ");
+    return Object.entries(production).map(([key, value]) => `${value > 0 ? "+" : ""}${value}/s ${resourceName(key, value)}`).join(" - ");
   }
 
   function log(message) {
     if (!state) return;
-    const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const time = new Date().toLocaleTimeString(currentLang === "en" ? "en-GB" : "fr-FR", { hour: "2-digit", minute: "2-digit" });
     state.log.push(`${time} - ${message}`);
     state.log = state.log.slice(-50);
   }
@@ -479,44 +499,45 @@
     }
     const current = state.spaces[id];
     if (state.resources.mastery < space.unlockMastery) {
-      showToast("Le labo doit gagner en savoir-faire pour activer ce module.");
+      showToast(t("needsMasteryToast"));
       return;
     }
     if (current.owned && current.level >= space.maxLevel) {
-      showToast("Ce module est deja au niveau maximum.");
+      showToast(t("maxModuleToast"));
       return;
     }
     const cost = spaceCost(space);
     if (!pay(cost)) {
-      showToast("Ressources insuffisantes.");
+      showToast(t("insufficientResources"));
       return;
     }
     current.owned = true;
     current.level += 1;
-    log(current.level === 1 ? `${space.name} installe.` : `${space.name} passe niveau ${current.level}.`);
+    const spaceName = tr("spaces", space, "name");
+    log(current.level === 1 ? t("logInstalled", { name: spaceName }) : t("logLevel", { name: spaceName, level: current.level }));
     render({ preserveScroll: true });
   }
 
   function openClassroom() {
     const current = state.spaces.classroom;
     if (classroomCount() >= MAX_CLASSROOMS) {
-      showToast("Toutes les salles disponibles sont deja ouvertes.");
+      showToast(t("allRoomsOpenToast"));
       return;
     }
     if (!allOpenRoomsFull()) {
-      showToast("Remplis d'abord les places ouvertes avant d'ajouter une salle.");
+      showToast(t("fillRoomsToast"));
       return;
     }
     const cost = classroomCost();
     if (!pay(cost)) {
-      showToast("Ressources insuffisantes pour ouvrir une nouvelle salle.");
+      showToast(t("roomCostToast"));
       return;
     }
     state.classrooms.unlocked = classroomCount() + 1;
     state.classrooms.active = state.classrooms.unlocked - 1;
     current.owned = true;
     current.level = state.classrooms.unlocked - 1;
-    log(`Salle ${state.classrooms.unlocked} ouverte : 24 nouvelles places disponibles.`);
+    log(t("logRoom", { room: state.classrooms.unlocked }));
     render({ preserveScroll: true });
   }
 
@@ -524,29 +545,29 @@
     const recruit = RECRUITS.find((item) => item.id === id);
     if (!recruit) return;
     if (state.resources.mastery < recruit.unlockMastery) {
-      showToast("Cette equipe demande plus de savoir-faire.");
+      showToast(t("recruitMasteryToast"));
       return;
     }
     if (!canMeet(recruit.requires)) {
-      showToast("Condition non remplie pour ce recrutement.");
+      showToast(t("recruitRequirementToast"));
       return;
     }
     const incomingLearners = Math.max(0, Math.floor(recruit.onHire?.learners || 0));
     if (incomingLearners > 0 && !hasSeatCapacity(incomingLearners)) {
       activeSideTab = "stations";
-      showToast("La salle est pleine : ouvre une salle supplementaire.");
+      showToast(t("roomFullToast"));
       render({ preserveScroll: true });
       return;
     }
     const cost = recruitCost(recruit);
     if (!pay(cost)) {
-      showToast("Ressources insuffisantes.");
+      showToast(t("insufficientResources"));
       return;
     }
     state.recruits[id].count += 1;
     apply(recruit.onHire);
     addStudentSpritesTo(state, recruit.onHire?.learners || 0);
-    log(`${recruit.name} rejoint la classe.`);
+    log(t("logRecruit", { name: tr("recruits", recruit, "name") }));
     render({ preserveScroll: true });
   }
 
@@ -554,7 +575,7 @@
     const action = ACTIONS.find((item) => item.id === id);
     if (!action) return;
     if (!canMeet(action.requires)) {
-      showToast("Il faut plus d'eleves pour lancer ce defi.");
+      showToast(t("actionLearnersToast"));
       return;
     }
     if (action.challenge) {
@@ -562,11 +583,11 @@
       return;
     }
     if (!pay(action.cost)) {
-      showToast("Action impossible : stock insuffisant.");
+      showToast(t("actionStockToast"));
       return;
     }
     apply(action.effect);
-    log(`Action lancee : ${action.name}.`);
+    log(t("logAction", { name: tr("actions", action, "name") }));
     render({ preserveScroll: true });
   }
 
@@ -574,17 +595,17 @@
     const item = KNOWLEDGE.find((entry) => entry.id === id);
     if (!item) return;
     if (state.knowledge[id]) {
-      showToast("Cette connaissance est deja debloquee.");
+      showToast(t("knowledgeOwnedToast"));
       return;
     }
     if (state.badges < item.cost) {
-      showToast("Pas assez de jetons savoir.");
+      showToast(t("knowledgeTokenToast"));
       return;
     }
     state.badges -= item.cost;
     state.knowledge[id] = true;
     if (item.instant) apply(item.instant);
-    log(`Connaissance debloquee : ${item.name}.`);
+    log(t("logKnowledge", { name: tr("knowledge", item, "name") }));
     render({ preserveScroll: true });
   }
 
@@ -594,8 +615,8 @@
 
   function challengeStatsText() {
     const stats = window.TechnoChallengeBank?.stats?.() || [];
-    if (!stats.length) return "banque locale";
-    return `${stats.length} themes - ${stats[0].byLevel[state.level]} defis/theme`;
+    if (!stats.length) return t("localBank");
+    return t("challengeStats", { themes: stats.length, count: stats[0].byLevel[state.level] });
   }
 
   function pickChallenge() {
@@ -622,7 +643,7 @@
     } else {
       apply(challenge.penalty);
     }
-    log(`${choice.correct ? "Defi reussi" : "Defi manque"} : ${challenge.themeLabel} (${challenge.typeLabel}).`);
+    log(`${choice.correct ? t("challengeSuccess") : t("challengeMiss")} : ${challenge.themeLabel} (${challenge.typeLabel}).`);
     saveState();
 
     const card = modal.querySelector(".challenge-modal");
@@ -632,31 +653,31 @@
     });
     card.insertAdjacentHTML("beforeend", `
       <section class="challenge-result ${choice.correct ? "correct" : "wrong"}">
-        <h3>${choice.correct ? "Bonne reponse" : "A revoir"}</h3>
-        <p><strong>Retour :</strong> ${escapeHtml(choice.feedback)}</p>
-        <p><strong>Point de cours :</strong> ${escapeHtml(challenge.coursePoint || "Relis la fonction de chaque element du systeme avant de repondre.")}</p>
-        <p><strong>${choice.correct ? "Gain" : "Consequence"} :</strong> ${escapeHtml(effectText(choice.correct ? challenge.reward : challenge.penalty))}</p>
-        <button class="paper-button buy" type="button" data-continue-defi>Continuer</button>
+        <h3>${choice.correct ? escapeHtml(t("correctAnswer")) : escapeHtml(t("review"))}</h3>
+        <p><strong>${escapeHtml(t("feedback"))} :</strong> ${escapeHtml(choice.feedback)}</p>
+        <p><strong>${escapeHtml(t("coursePoint"))} :</strong> ${escapeHtml(challenge.coursePoint || t("fallbackCoursePoint"))}</p>
+        <p><strong>${choice.correct ? escapeHtml(t("gain")) : escapeHtml(t("consequence"))} :</strong> ${escapeHtml(effectText(choice.correct ? challenge.reward : challenge.penalty))}</p>
+        <button class="paper-button buy" type="button" data-continue-defi>${escapeHtml(t("continue"))}</button>
       </section>
     `);
     card.querySelector("[data-continue-defi]").addEventListener("click", () => {
       modal.remove();
       render({ preserveScroll: true });
     });
-    showToast(choice.correct ? "Bonne reponse." : "Reponse a revoir.");
+    showToast(choice.correct ? t("correctToast") : t("wrongToast"));
   }
 
   function renderChallengeInteraction(challenge) {
     if (challenge.type === "sequence") {
       return `
         <div class="sequence-builder">
-          <div class="sequence-slots" data-seq-output>Selectionne les etapes dans l'ordre.</div>
+          <div class="sequence-slots" data-seq-output>${escapeHtml(t("selectSequence"))}</div>
           <div class="sequence-pool">
             ${challenge.pool.map((step, index) => `<button type="button" data-seq-step="${index}" data-order="${step.order}">${escapeHtml(step.label)}</button>`).join("")}
           </div>
           <div class="sequence-actions">
-            <button class="paper-button buy" type="button" data-seq-validate>Valider l'ordre</button>
-            <button class="paper-button" type="button" data-seq-reset>Recommencer</button>
+            <button class="paper-button buy" type="button" data-seq-validate>${escapeHtml(t("validateOrder"))}</button>
+            <button class="paper-button" type="button" data-seq-reset>${escapeHtml(t("restart"))}</button>
           </div>
         </div>
       `;
@@ -697,7 +718,7 @@
     const selected = [];
     const output = modal.querySelector("[data-seq-output]");
     const updateOutput = () => {
-      output.textContent = selected.length ? selected.map((step) => step.label).join(" -> ") : "Selectionne les etapes dans l'ordre.";
+      output.textContent = selected.length ? selected.map((step) => step.label).join(" -> ") : t("selectSequence");
     };
 
     modal.querySelectorAll("[data-seq-step]").forEach((button) => {
@@ -717,13 +738,13 @@
 
     modal.querySelector("[data-seq-validate]").addEventListener("click", () => {
       if (selected.length !== challenge.steps.length) {
-        showToast("Selectionne toutes les etapes avant de valider.");
+        showToast(t("sequenceMissingToast"));
         return;
       }
       const correct = selected.every((step, index) => step.order === index);
       resolveChallenge(modal, challenge, {
         correct,
-        feedback: correct ? "L'ordre respecte la logique du systeme." : "L'ordre contient au moins une inversion."
+        feedback: correct ? I18N.translateChallengeText("L'ordre respecte la logique du systeme.", currentLang) : I18N.translateChallengeText("L'ordre contient au moins une inversion.", currentLang)
       });
     });
   }
@@ -732,20 +753,21 @@
     if (!state) return;
     if (document.querySelector(".modal-backdrop")) return;
     if (!forced && Date.now() - state.lastChallengeAt < 18000) {
-      showToast("Aucun defi urgent pour le moment.");
+      showToast(t("noChallengeToast"));
       return;
     }
     state.lastChallengeAt = Date.now();
-    const challenge = pickChallenge();
-    if (!challenge) {
-      showToast("Banque de defis indisponible.");
+    const sourceChallenge = pickChallenge();
+    if (!sourceChallenge) {
+      showToast(t("challengeBankToast"));
       return;
     }
+    const challenge = localizeChallenge(sourceChallenge);
     const modal = document.createElement("div");
     modal.className = "modal-backdrop";
     modal.innerHTML = `
-      <section class="modal-card challenge-modal" role="dialog" aria-modal="true" aria-label="Defi techno">
-        <button class="modal-close" type="button" aria-label="Fermer">X</button>
+      <section class="modal-card challenge-modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(t("challengeDialog"))}">
+        <button class="modal-close" type="button" aria-label="${escapeHtml(t("close"))}">X</button>
         <div class="modal-head">
           <img src="${ASSETS[challenge.icon] || ASSETS.incident}" alt="" />
           <div>
@@ -770,7 +792,7 @@
   function createPlayer() {
     const input = document.querySelector("[data-player-name]");
     const levelInput = document.querySelector("input[name='level']:checked");
-    const name = input?.value.trim() || "Eleve techno";
+    const name = input?.value.trim() || t("defaultPlayer");
     const level = levelInput?.value || "5e";
     activeSideTab = "teams";
     state = defaultState(name, level);
@@ -780,7 +802,7 @@
   }
 
   function resetGame() {
-    if (state && !window.confirm("Recommencer une nouvelle partie a zero ?")) return;
+    if (state && !window.confirm(t("resetConfirm"))) return;
     activeSideTab = "teams";
     localStorage.removeItem(STORAGE_KEY);
     state = null;
@@ -791,6 +813,25 @@
   function setLevelTheme(level) {
     const cleanLevel = ["5e", "4e", "3e"].includes(level) ? level : "5e";
     document.body.dataset.level = cleanLevel;
+  }
+
+  function setLanguage(lang) {
+    const next = I18N?.normalizeLang(lang) || "fr";
+    if (next === currentLang) return;
+    currentLang = next;
+    localStorage.setItem(LANG_STORAGE_KEY, currentLang);
+    if (state) state.lang = currentLang;
+    setLanguageChrome();
+    render({ preserveScroll: true });
+  }
+
+  function renderLanguageSwitch(extraClass = "") {
+    return `
+      <div class="language-switch ${extraClass}" role="group" aria-label="${escapeHtml(t("languageSwitch"))}">
+        <button class="flag-button ${currentLang === "fr" ? "active" : ""}" type="button" data-language="fr" aria-pressed="${currentLang === "fr"}" title="${escapeHtml(I18N?.t("fr", "languageName") || "Francais")}">🇫🇷 <span>FR</span></button>
+        <button class="flag-button ${currentLang === "en" ? "active" : ""}" type="button" data-language="en" aria-pressed="${currentLang === "en"}" title="${escapeHtml(I18N?.t("en", "languageName") || "English")}">🇬🇧 <span>EN</span></button>
+      </div>
+    `;
   }
 
   function setSideTab(tabId) {
@@ -860,6 +901,7 @@
 
   function render(options = {}) {
     const app = document.querySelector("#app");
+    setLanguageChrome();
     if (!state?.playerName) {
       rates = emptyRates();
       setLevelTheme("5e");
@@ -872,16 +914,16 @@
     setLevelTheme(state.level);
     rates = computeRates();
     app.innerHTML = `
-      <main class="classroom-main" aria-label="Salle de classe">
+      <main class="classroom-main" aria-label="${escapeHtml(t("classroomMain"))}">
         ${renderClassroomScene()}
       </main>
-      <aside class="side-panel" aria-label="Pilotage du labo">
+      <aside class="side-panel" aria-label="${escapeHtml(t("sidePanel"))}">
         ${renderSidePanel()}
       </aside>
-      <section class="wide-notes" aria-label="Notes du labo">
+      <section class="wide-notes" aria-label="${escapeHtml(t("notesPanel"))}">
         ${renderTodo()}
         ${renderJournal()}
-        <button class="reset-corner" type="button" data-new-game title="Recommencer la partie a zero">Recommencer a zero</button>
+        <button class="reset-corner" type="button" data-new-game title="${escapeHtml(t("resetTitle"))}">${escapeHtml(t("resetButton"))}</button>
       </section>
       <div class="toast" role="status" aria-live="polite"></div>
     `;
@@ -892,29 +934,32 @@
 
   function renderWelcome() {
     return `
-      <main class="welcome-screen" aria-label="Creation de joueur">
+      <main class="welcome-screen" aria-label="${escapeHtml(t("playerName"))}">
         <section class="welcome-card">
           <div class="welcome-copy">
-            <div class="welcome-kicker"><img src="${ASSETS.cart}" alt="" /> Carnet d'atelier</div>
-            <h1>Labo Techno Cycle 4</h1>
+            <div class="welcome-toprow">
+              <div class="welcome-kicker"><img src="${ASSETS.cart}" alt="" /> ${escapeHtml(t("welcomeKicker"))}</div>
+              ${renderLanguageSwitch("welcome-lang")}
+            </div>
+            <h1>${escapeHtml(t("appTitle"))}</h1>
             <label class="welcome-form">
-              <span>Nom du joueur</span>
-              <input data-player-name type="text" maxlength="32" autocomplete="off" placeholder="Ex. Lina, Sami, Groupe 4" />
+              <span>${escapeHtml(t("playerName"))}</span>
+              <input data-player-name type="text" maxlength="32" autocomplete="off" placeholder="${escapeHtml(t("playerPlaceholder"))}" />
             </label>
-            <fieldset class="level-select" aria-label="Niveau">
-              <legend>Niveau</legend>
+            <fieldset class="level-select" aria-label="${escapeHtml(t("level"))}">
+              <legend>${escapeHtml(t("level"))}</legend>
               <label><input type="radio" name="level" value="5e" checked /><span>5e</span></label>
               <label><input type="radio" name="level" value="4e" /><span>4e</span></label>
               <label><input type="radio" name="level" value="3e" /><span>3e</span></label>
             </fieldset>
-            <button class="welcome-start" type="button" data-create-player>Commencer</button>
+            <button class="welcome-start" type="button" data-create-player>${escapeHtml(t("start"))}</button>
           </div>
           <div class="welcome-visual" aria-hidden="true">
             <img class="welcome-hero-image" src="${ASSETS.classroomHero}" alt="" />
-            <div class="welcome-token learners"><img src="${ASSETS.learners}" alt="" /><span>0 eleve</span></div>
-            <div class="welcome-token material"><img src="${ASSETS.material}" alt="" /><span>0 piece</span></div>
-            <div class="welcome-token teachers"><img src="${ASSETS.teachers}" alt="" /><span>0 mentor</span></div>
-            <div class="welcome-token mastery"><img src="${ASSETS.mastery}" alt="" /><span>0 savoir</span></div>
+            <div class="welcome-token learners"><img src="${ASSETS.learners}" alt="" /><span>0 ${escapeHtml(resourceName("learners", 1))}</span></div>
+            <div class="welcome-token material"><img src="${ASSETS.material}" alt="" /><span>0 ${escapeHtml(resourceName("material", 1))}</span></div>
+            <div class="welcome-token teachers"><img src="${ASSETS.teachers}" alt="" /><span>0 ${escapeHtml(resourceName("teachers", 1))}</span></div>
+            <div class="welcome-token mastery"><img src="${ASSETS.mastery}" alt="" /><span>0 ${escapeHtml(resourceName("mastery", 1))}</span></div>
             <div class="welcome-path">
               <img src="${ASSETS.sensor}" alt="" />
               <img src="${ASSETS.motor}" alt="" />
@@ -932,28 +977,28 @@
       <section class="control-card player-card">
         <div class="hud-row">
           <div class="game-title"><img src="${ASSETS.cart}" alt="" /> Labo Techno <span>${escapeHtml(state.playerName)} - ${escapeHtml(state.level)}</span></div>
-          <button class="hud-button quiet" type="button" data-new-game>Nouvelle partie</button>
+          <button class="hud-button quiet" type="button" data-new-game>${escapeHtml(t("resetButton"))}</button>
         </div>
       </section>
       <section class="control-card resources-card">
-        <h2>Tableau de bord</h2>
+        <h2>${escapeHtml(t("dashboard"))}</h2>
         <div class="resource-stack">
-          ${resourcePill("Eleves", state.resources.learners, rates.learners, "learners")}
-          ${resourcePill("Pieces", state.resources.material, rates.material, "material")}
-          ${resourcePill("Mentors", state.resources.teachers, rates.teachers, "teachers")}
-          ${resourcePill("Fiches", state.resources.resources, rates.resources, "resources")}
-          ${resourcePill("Savoir-faire", state.resources.mastery, rates.mastery, "mastery")}
+          ${resourcePill(resourceName("learners", 2), state.resources.learners, rates.learners, "learners")}
+          ${resourcePill(resourceName("material", 2), state.resources.material, rates.material, "material")}
+          ${resourcePill(resourceName("teachers", 2), state.resources.teachers, rates.teachers, "teachers")}
+          ${resourcePill(resourceName("resources", 2), state.resources.resources, rates.resources, "resources")}
+          ${resourcePill(resourceName("mastery", 2), state.resources.mastery, rates.mastery, "mastery")}
         </div>
       </section>
       <section class="control-card gauges-card">
         <div class="bars-row">
-          ${bar("Motivation", state.resources.motivation, "motivation")}
-          ${bar("Agitation", state.resources.disorder, "disorder")}
+          ${bar(t("motivation"), state.resources.motivation, "motivation")}
+          ${bar(t("disorder"), state.resources.disorder, "disorder")}
           ${knowledgeBar()}
         </div>
       </section>
-      <section class="control-card actions-zone" aria-label="Actions rapides">
-        <h2>Gestes d'atelier</h2>
+      <section class="control-card actions-zone" aria-label="${escapeHtml(t("workshopActions"))}">
+        <h2>${escapeHtml(t("workshopActions"))}</h2>
         ${ACTIONS.map(renderAction).join("")}
       </section>
       ${renderTodo()}
@@ -972,16 +1017,16 @@
       <section class="classroom-scene">
         <div class="classroom-topline">
           <div>
-            <span>Labo en cours</span>
-            <strong>${format(state.resources.learners)} eleve${state.resources.learners > 1 ? "s" : ""}</strong>
+            <span>${escapeHtml(t("labRunning"))}</span>
+            <strong>${format(state.resources.learners)} ${escapeHtml(resourceName("learners", state.resources.learners))}</strong>
           </div>
           ${renderClassroomTabs(activeRoom)}
         </div>
         <div class="classroom-room">
           <div class="classroom-wall">
             <div class="whiteboard">
-              <span>SALLE ${activeRoom + 1} - PLAN DE SEANCE</span>
-              <small>${roomFill}/${CLASSROOM_SEAT_COUNT} places - ${escapeHtml(state.level)} - ${escapeHtml(challengeStatsText())}</small>
+              <span>${escapeHtml(t("lessonPlan", { index: activeRoom + 1 }))}</span>
+              <small>${escapeHtml(t("placeLine", { count: roomFill, total: CLASSROOM_SEAT_COUNT, level: state.level, stats: challengeStatsText() }))}</small>
             </div>
             ${renderTeacherDesk()}
           </div>
@@ -1009,18 +1054,18 @@
     const rooms = classroomCount();
     const canOpenNext = allOpenRoomsFull() && rooms < MAX_CLASSROOMS;
     return `
-      <nav class="room-tabs" aria-label="Salles ouvertes">
+      <nav class="room-tabs" aria-label="${escapeHtml(t("openRoomsLabel"))}">
         ${Array.from({ length: rooms }, (_, index) => {
           const start = index * CLASSROOM_SEAT_COUNT;
           const count = sanitizeStudents(state.students).slice(start, start + CLASSROOM_SEAT_COUNT).length;
           return `
             <button class="room-tab ${index === activeRoom ? "active" : ""}" type="button" data-classroom-tab="${index}" aria-pressed="${index === activeRoom}">
-              <span>Salle ${index + 1}</span>
+              <span>${escapeHtml(t("roomLabel", { index: index + 1 }))}</span>
               <small>${count}/${CLASSROOM_SEAT_COUNT}</small>
             </button>
           `;
         }).join("")}
-        ${canOpenNext ? `<button class="room-tab add-room ${canPay(classroomCost()) ? "" : "blocked"}" type="button" data-open-room aria-disabled="${!canPay(classroomCost())}">+ salle</button>` : ""}
+        ${canOpenNext ? `<button class="room-tab add-room ${canPay(classroomCost()) ? "" : "blocked"}" type="button" data-open-room aria-disabled="${!canPay(classroomCost())}">${escapeHtml(t("addRoom"))}</button>` : ""}
       </nav>
     `;
   }
@@ -1031,8 +1076,8 @@
       <div class="teacher-desk ${teacherCount > 0 ? "active" : ""}">
         <img src="${ASSETS.teachers}" alt="" />
         <div>
-          <span>${teacherCount > 0 ? `${teacherCount} mentor${teacherCount > 1 ? "s" : ""}` : "Poste mentor"}</span>
-          <small>${teacherCount > 0 ? "Seance pilotee" : "En attente"}</small>
+          <span>${teacherCount > 0 ? `${teacherCount} ${escapeHtml(resourceName("teachers", teacherCount))}` : escapeHtml(t("mentorStation"))}</span>
+          <small>${teacherCount > 0 ? escapeHtml(t("sessionLed")) : escapeHtml(t("waiting"))}</small>
         </div>
       </div>
     `;
@@ -1106,13 +1151,13 @@
     return `
       <div class="station-prop ${active ? "active" : ""}">
         <img src="${ASSETS[iconName]}" alt="" />
-        ${active ? `<span>Niv. ${current.level}</span>` : ""}
+        ${active ? `<span>${escapeHtml(t("levelShort"))} ${current.level}</span>` : ""}
       </div>
     `;
   }
 
   function resourcePill(label, value, rate, iconName) {
-    return `<div class="resource-pill"><img src="${ASSETS[iconName]}" alt="" /><span>${label}</span><strong>${format(value)}</strong><small>+${rate.toFixed(1)}/s</small></div>`;
+    return `<div class="resource-pill"><img src="${ASSETS[iconName]}" alt="" /><span>${escapeHtml(label)}</span><strong>${format(value)}</strong><small>+${rate.toFixed(1)}/s</small></div>`;
   }
 
   function bar(label, value, type) {
@@ -1131,7 +1176,7 @@
     return `
       <div class="bar-block knowledge-meter">
         <div class="bar-label">
-          <span>Connaissances</span>
+          <span>${escapeHtml(t("knowledge"))}</span>
           <span>${unlocked}/${total}</span>
         </div>
         <div class="bar-track"><div class="bar-fill knowledge" style="width:${percent}%"></div></div>
@@ -1148,16 +1193,16 @@
       <article class="game-card ${locked ? "locked" : ""}">
         <div class="card-title">
           <img src="${ASSETS[space.icon]}" alt="" />
-          <span>${escapeHtml(space.name)}</span>
-          <span class="level-badge">${current.owned ? `Niv. ${current.level}` : "A creer"}</span>
+          <span>${escapeHtml(tr("spaces", space, "name"))}</span>
+          <span class="level-badge">${current.owned ? `${escapeHtml(t("levelShort"))} ${current.level}` : escapeHtml(t("openRoom"))}</span>
         </div>
         <div class="card-body">
-          ${escapeHtml(space.description)}
+          ${escapeHtml(tr("spaces", space, "description"))}
           <div class="card-effects">${escapeHtml(productionText(space.production))}</div>
         </div>
         <div class="button-row">
-          <button class="paper-button buy ${locked || maxed || !canPay(cost) ? "blocked" : ""}" type="button" data-space="${space.id}" aria-disabled="${locked || maxed || !canPay(cost)}">${maxed ? "Stabilise" : costText(cost)}</button>
-          <button class="paper-button" type="button" disabled>${locked ? `${space.unlockMastery} savoir-faire` : space.effect}</button>
+          <button class="paper-button buy ${locked || maxed || !canPay(cost) ? "blocked" : ""}" type="button" data-space="${space.id}" aria-disabled="${locked || maxed || !canPay(cost)}">${maxed ? escapeHtml(t("stabilized")) : costText(cost)}</button>
+          <button class="paper-button" type="button" disabled>${locked ? escapeHtml(t("masteryRequired", { count: space.unlockMastery })) : escapeHtml(tr("spaces", space, "effect"))}</button>
         </div>
       </article>
     `;
@@ -1171,16 +1216,16 @@
       <article class="game-card employee">
         <div class="card-title">
           <img src="${ASSETS[recruit.icon]}" alt="" />
-          <span>${escapeHtml(recruit.name)}</span>
+          <span>${escapeHtml(tr("recruits", recruit, "name"))}</span>
           <span class="level-badge">x${current.count}</span>
         </div>
         <div class="card-body">
-          ${escapeHtml(recruit.description)}
+          ${escapeHtml(tr("recruits", recruit, "description"))}
           <div class="card-effects">${escapeHtml(productionText(recruit.production))}</div>
         </div>
         <div class="button-row">
           <button class="paper-button buy ${missingRequirement || !canPay(cost) ? "blocked" : ""}" type="button" data-recruit="${recruit.id}" aria-disabled="${missingRequirement || !canPay(cost)}">${missingRequirement ? requirementText(recruit.requires) : costText(cost)}</button>
-          <button class="paper-button" type="button" disabled>${recruit.unlockMastery ? `${recruit.unlockMastery} savoir-faire` : "Disponible"}</button>
+          <button class="paper-button" type="button" disabled>${recruit.unlockMastery ? escapeHtml(t("masteryRequired", { count: recruit.unlockMastery })) : escapeHtml(t("available"))}</button>
         </div>
       </article>
     `;
@@ -1191,7 +1236,7 @@
     return `
       <button class="action-card ${blocked ? "blocked" : ""}" type="button" data-action="${action.id}" aria-disabled="${blocked}">
         <img src="${ASSETS[action.icon]}" alt="" />
-        <span><strong>${escapeHtml(action.name)}</strong><span>${escapeHtml(!canMeet(action.requires) ? requirementText(action.requires) : action.text)}</span></span>
+        <span><strong>${escapeHtml(tr("actions", action, "name"))}</strong><span>${escapeHtml(!canMeet(action.requires) ? requirementText(action.requires) : tr("actions", action, "text"))}</span></span>
       </button>
     `;
   }
@@ -1199,9 +1244,9 @@
   function renderTodo() {
     return `
       <section class="bottom-card">
-        <h2>To-do</h2>
+        <h2>${escapeHtml(t("todo"))}</h2>
         <ul class="todo-list">
-          ${activeMissions().map((mission) => `<li class="${mission.done ? "done" : ""}">${mission.done ? "OK" : "A faire"} - ${escapeHtml(mission.text)}</li>`).join("")}
+          ${activeMissions().map((mission) => `<li class="${mission.done ? "done" : ""}">${mission.done ? escapeHtml(t("done")) : escapeHtml(t("todoPending"))} - ${escapeHtml(trById("missions", mission.id, "text", mission.text))}</li>`).join("")}
         </ul>
       </section>
     `;
@@ -1210,7 +1255,7 @@
   function renderJournal() {
     return `
       <section class="bottom-card">
-        <h2>Journal</h2>
+        <h2>${escapeHtml(t("journal"))}</h2>
         <ul class="journal-list">
           ${state.log.slice(-5).reverse().map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
         </ul>
@@ -1223,19 +1268,22 @@
     return `
       <section class="pilot-section dashboard-section">
         <header>
-          <span>Suivi instantane</span>
-          <small><img src="${ASSETS.mastery}" alt="" /> ${state.badges} jeton${state.badges > 1 ? "s" : ""} savoir</small>
+          <span>${escapeHtml(t("dashboard"))}</span>
+          <div class="panel-header-actions">
+            <small><img src="${ASSETS.mastery}" alt="" /> ${escapeHtml(t("knowledgeToken", { count: state.badges }))}</small>
+            ${renderLanguageSwitch("panel-lang")}
+          </div>
         </header>
         <div class="resource-stack">
-          ${resourcePill("Eleves", state.resources.learners, rates.learners, "learners")}
-          ${resourcePill("Pieces", state.resources.material, rates.material, "material")}
-          ${resourcePill("Mentors", state.resources.teachers, rates.teachers, "teachers")}
-          ${resourcePill("Fiches", state.resources.resources, rates.resources, "resources")}
-          ${resourcePill("Savoir-faire", state.resources.mastery, rates.mastery, "mastery")}
+          ${resourcePill(resourceName("learners", 2), state.resources.learners, rates.learners, "learners")}
+          ${resourcePill(resourceName("material", 2), state.resources.material, rates.material, "material")}
+          ${resourcePill(resourceName("teachers", 2), state.resources.teachers, rates.teachers, "teachers")}
+          ${resourcePill(resourceName("resources", 2), state.resources.resources, rates.resources, "resources")}
+          ${resourcePill(resourceName("mastery", 2), state.resources.mastery, rates.mastery, "mastery")}
         </div>
         <div class="bars-row">
-          ${bar("Motivation", state.resources.motivation, "motivation")}
-          ${bar("Agitation", state.resources.disorder, "disorder")}
+          ${bar(t("motivation"), state.resources.motivation, "motivation")}
+          ${bar(t("disorder"), state.resources.disorder, "disorder")}
           ${knowledgeBar()}
         </div>
       </section>
@@ -1246,11 +1294,11 @@
 
   function renderSideTabs(activeTab) {
     return `
-      <nav class="pilot-tabs" role="tablist" aria-label="Pilotage du labo">
+      <nav class="pilot-tabs" role="tablist" aria-label="${escapeHtml(t("sidePanel"))}">
         ${SIDE_TABS.map((tab) => `
           <button class="pilot-tab ${activeTab === tab.id ? "active" : ""}" type="button" role="tab" data-side-tab="${tab.id}" aria-selected="${activeTab === tab.id}">
             <img src="${ASSETS[tab.icon]}" alt="" />
-            <span>${escapeHtml(tab.label)}</span>
+            <span>${escapeHtml(tr("sideTabs", tab, "label"))}</span>
           </button>
         `).join("")}
       </nav>
@@ -1259,22 +1307,22 @@
 
   function renderSideTabPanel(activeTab) {
     if (activeTab === "stations") {
-      return renderModuleTab("Stations", "tools", SPACES.map(renderSideSpace).join(""), "stations-tab");
+      return renderModuleTab(t("stations"), "tools", SPACES.map(renderSideSpace).join(""), "stations-tab");
     }
     if (activeTab === "protocols") {
-      return renderModuleTab("Protocoles", "mastery", KNOWLEDGE.map(renderKnowledge).join(""), "protocols-tab");
+      return renderModuleTab(t("protocols"), "mastery", KNOWLEDGE.map(renderKnowledge).join(""), "protocols-tab");
     }
     if (activeTab === "actions") {
       return `
         <section class="pilot-section tab-section actions-tab" role="tabpanel">
-          <header><span>Gestes d'atelier</span></header>
+          <header><span>${escapeHtml(t("workshopActions"))}</span></header>
           <div class="action-grid">
             ${ACTIONS.map(renderAction).join("")}
           </div>
         </section>
       `;
     }
-    return renderModuleTab("Equipes", "learners", RECRUITS.map(renderSideRecruit).join(""), "teams-tab");
+    return renderModuleTab(t("teams"), "learners", RECRUITS.map(renderSideRecruit).join(""), "teams-tab");
   }
 
   function renderModuleTab(title, iconName, content, className = "") {
@@ -1306,17 +1354,17 @@
     const noSeats = incomingLearners > 0 && !hasSeatCapacity(incomingLearners);
     const blocked = locked || missingRequirement || noSeats || !canPay(cost);
     const buttonLabel = locked
-      ? `${recruit.unlockMastery} savoir-faire`
+      ? t("masteryRequired", { count: recruit.unlockMastery })
       : missingRequirement ? requirementText(recruit.requires)
-      : noSeats ? "Ouvrir une salle"
-      : `Mobiliser - ${costText(cost)}`;
+      : noSeats ? t("openRoom")
+      : t("mobilize", { cost: costText(cost) });
     return `
       <article class="module-node team ${locked ? "locked" : ""}">
         <span class="node-pin"></span>
         <div class="node-icon"><img src="${ASSETS[recruit.icon]}" alt="" /></div>
         <div class="node-copy">
-          <h3><span>${escapeHtml(recruit.name)}</span><em>x${current.count}</em></h3>
-          <p>${escapeHtml(recruit.description)}</p>
+          <h3><span>${escapeHtml(tr("recruits", recruit, "name"))}</span><em>x${current.count}</em></h3>
+          <p>${escapeHtml(tr("recruits", recruit, "description"))}</p>
           <button class="paper-button buy ${blocked ? "blocked" : ""}" type="button" data-recruit="${recruit.id}" aria-disabled="${blocked}">${escapeHtml(buttonLabel)}</button>
         </div>
       </article>
@@ -1332,18 +1380,18 @@
     const waitingForFullRoom = isClassroom && !maxed && !allOpenRoomsFull();
     const blocked = locked || maxed || waitingForFullRoom || !canPay(cost);
     const stateLabel = isClassroom
-      ? `${classroomCount()}/${MAX_CLASSROOMS} salles`
-      : current.owned ? `niv. ${current.level}` : "hors ligne";
+      ? `${classroomCount()}/${MAX_CLASSROOMS} ${currentLang === "en" ? "rooms" : "salles"}`
+      : current.owned ? `${t("levelShort").toLowerCase()} ${current.level}` : t("offline");
     const buttonLabel = isClassroom
-      ? maxed ? "Toutes ouvertes" : waitingForFullRoom ? `${learnerTotal()}/${totalSeatCapacity()} places occupees` : `Ouvrir - ${costText(cost)}`
-      : maxed ? "Stabilise" : locked ? `${space.unlockMastery} savoir-faire` : `Activer - ${costText(cost)}`;
+      ? maxed ? t("fullRooms") : waitingForFullRoom ? t("seatsUsed", { learners: learnerTotal(), seats: totalSeatCapacity() }) : t("open", { cost: costText(cost) })
+      : maxed ? t("stabilized") : locked ? t("masteryRequired", { count: space.unlockMastery }) : t("activate", { cost: costText(cost) });
     return `
       <article class="module-node station ${current.owned ? "online" : ""} ${locked ? "locked" : ""}">
         <span class="node-pin"></span>
         <div class="node-icon"><img src="${ASSETS[space.icon]}" alt="" /></div>
         <div class="node-copy">
-          <h3><span>${escapeHtml(space.name)}</span><em>${escapeHtml(stateLabel)}</em></h3>
-          <p>${escapeHtml(space.description)}</p>
+          <h3><span>${escapeHtml(tr("spaces", space, "name"))}</span><em>${escapeHtml(stateLabel)}</em></h3>
+          <p>${escapeHtml(tr("spaces", space, "description"))}</p>
           <button class="paper-button buy ${blocked ? "blocked" : ""}" type="button" data-space="${space.id}" aria-disabled="${blocked}">${escapeHtml(buttonLabel)}</button>
         </div>
       </article>
@@ -1357,9 +1405,9 @@
         <span class="node-pin"></span>
         <div class="node-icon"><img src="${ASSETS[item.icon]}" alt="" /></div>
         <div class="node-copy">
-          <h3><span>${escapeHtml(item.name)}</span><em>${owned ? "valide" : `${item.cost} jeton${item.cost > 1 ? "s" : ""}`}</em></h3>
-          <p>${escapeHtml(item.description)}</p>
-          <button class="paper-button buy ${owned || state.badges < item.cost ? "blocked" : ""}" type="button" data-knowledge="${item.id}" aria-disabled="${owned || state.badges < item.cost}">${owned ? "Integre" : `Valider le protocole`}</button>
+          <h3><span>${escapeHtml(tr("knowledge", item, "name"))}</span><em>${owned ? escapeHtml(t("valid")) : escapeHtml(t("knowledgeToken", { count: item.cost }))}</em></h3>
+          <p>${escapeHtml(tr("knowledge", item, "description"))}</p>
+          <button class="paper-button buy ${owned || state.badges < item.cost ? "blocked" : ""}" type="button" data-knowledge="${item.id}" aria-disabled="${owned || state.badges < item.cost}">${owned ? escapeHtml(t("integrated")) : escapeHtml(t("validateProtocol"))}</button>
         </div>
       </article>
     `;
@@ -1368,6 +1416,7 @@
   function bindWelcomeEvents() {
     const input = document.querySelector("[data-player-name]");
     document.querySelector("[data-create-player]")?.addEventListener("click", createPlayer);
+    bindLanguageEvents();
     document.querySelectorAll("input[name='level']").forEach((radio) => {
       radio.addEventListener("change", () => {
         if (radio.checked) setLevelTheme(radio.value);
@@ -1379,7 +1428,14 @@
     });
   }
 
+  function bindLanguageEvents() {
+    document.querySelectorAll("[data-language]").forEach((button) => {
+      button.addEventListener("click", () => setLanguage(button.dataset.language));
+    });
+  }
+
   function bindEvents() {
+    bindLanguageEvents();
     document.querySelectorAll("[data-space]").forEach((button) => button.addEventListener("click", () => buySpace(button.dataset.space)));
     document.querySelectorAll("[data-recruit]").forEach((button) => button.addEventListener("click", () => hireRecruit(button.dataset.recruit)));
     document.querySelectorAll("[data-action]").forEach((button) => button.addEventListener("click", () => useAction(button.dataset.action)));

@@ -87,6 +87,14 @@ body[data-level="3e"] {
   align-content: center;
 }
 
+.welcome-toprow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .welcome-kicker {
   width: fit-content;
   min-height: 46px;
@@ -99,6 +107,66 @@ body[data-level="3e"] {
   background: #fff;
   color: var(--level-strong);
   font-weight: 950;
+}
+
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px;
+  border: 1px solid rgba(32, 52, 45, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.flag-button {
+  min-width: 56px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: #20342d;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 950;
+}
+
+.flag-button.active {
+  border-color: color-mix(in srgb, var(--level-color), #20342d 12%);
+  background: var(--level-soft);
+  color: var(--level-strong);
+  box-shadow: 0 2px 0 rgba(32, 52, 45, 0.12);
+}
+
+.panel-header-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-lang {
+  border-color: rgba(159, 216, 230, 0.22);
+  background: rgba(234, 247, 246, 0.08);
+}
+
+.panel-lang .flag-button {
+  min-width: 48px;
+  min-height: 30px;
+  color: rgba(234, 247, 246, 0.78);
+  font-size: 0.82rem;
+}
+
+.panel-lang .flag-button.active {
+  background: #d8ffea;
+  color: #102532;
 }
 
 .welcome-kicker img {
@@ -1852,11 +1920,6 @@ body[data-level="3e"] {
   color: rgba(216, 225, 222, 0.42);
   filter: grayscale(1);
   opacity: 0.5;
-}
-
-.module-node .paper-button.blocked::before,
-.paper-button.buy.blocked::before {
-  content: "Indispo - ";
 }
 
 .notes-section {
