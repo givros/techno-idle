@@ -251,7 +251,8 @@
         teams: { label: "Teams" },
         stations: { label: "Stations" },
         protocols: { label: "Protocols" },
-        actions: { label: "Actions" }
+        actions: { label: "Actions" },
+        notes: { label: "Notes" }
       },
       knowledge: {
         project: { name: "Project method", description: "+20% know-how. Tests become comparable." },

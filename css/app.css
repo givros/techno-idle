@@ -7,6 +7,38 @@
   align-items: start;
 }
 
+.orientation-lock {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  place-items: center;
+  padding: 24px;
+  background:
+    linear-gradient(90deg, rgba(15, 139, 141, 0.12) 1px, transparent 1px) 0 0 / 30px 30px,
+    linear-gradient(0deg, rgba(15, 139, 141, 0.09) 1px, transparent 1px) 0 0 / 30px 30px,
+    #f8f4e7;
+  color: var(--ink);
+  text-align: center;
+}
+
+.orientation-lock strong,
+.orientation-lock span {
+  display: block;
+}
+
+.orientation-lock strong {
+  margin-bottom: 10px;
+  font-size: 1.65rem;
+  font-weight: 950;
+}
+
+.orientation-lock span {
+  max-width: 24rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
 body {
   --level-color: #0f8b8d;
   --level-strong: #064f50;
@@ -1567,7 +1599,7 @@ body[data-level="3e"] {
 
 .pilot-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 6px;
   padding: 6px;
   border: 1px solid rgba(159, 216, 230, 0.2);
@@ -1944,6 +1976,19 @@ body[data-level="3e"] {
 .side-panel .journal-list li {
   color: rgba(234, 247, 246, 0.78);
   font-size: 0.95rem;
+}
+
+.notes-tab-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.notes-tab-grid .bottom-card {
+  min-height: 0;
+  max-height: 100%;
+  overflow: auto;
 }
 
 .wide-notes {
@@ -2613,5 +2658,906 @@ body[data-level="3e"] {
   .student-extra {
     width: 54px;
     height: 54px;
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .game-shell {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .orientation-lock {
+    display: grid;
+  }
+}
+
+@media (max-width: 1180px) and (orientation: landscape) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .game-shell {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(420px, 48vw);
+    grid-template-rows: minmax(0, 1fr) minmax(92px, 17vh);
+    gap: 8px;
+    padding: 8px;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .welcome-screen {
+    grid-row: 1 / -1;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .welcome-card {
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+    grid-template-columns: minmax(0, 0.9fr) minmax(300px, 1fr);
+    gap: 20px;
+    overflow: auto;
+    padding: 22px;
+  }
+
+  .welcome-copy {
+    gap: 12px;
+  }
+
+  .welcome-copy h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+  }
+
+  .welcome-visual {
+    min-height: 280px;
+  }
+
+  .classroom-main {
+    order: 0;
+    min-height: 0;
+    height: 100%;
+    place-items: stretch;
+  }
+
+  .classroom-scene {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .classroom-topline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 46px;
+    padding: 6px 8px;
+  }
+
+  .classroom-topline strong {
+    padding: 4px 7px;
+    font-size: 0.9rem;
+  }
+
+  .room-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .room-tab {
+    min-width: 74px;
+    min-height: 34px;
+    padding: 4px 7px;
+    font-size: 0.8rem;
+  }
+
+  .room-tab small {
+    font-size: 0.66rem;
+  }
+
+  .classroom-room {
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: 78px minmax(0, 1fr);
+  }
+
+  .classroom-wall {
+    grid-template-columns: minmax(0, 1fr) minmax(112px, 150px);
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .whiteboard {
+    min-height: 54px;
+    padding: 7px 10px;
+  }
+
+  .whiteboard span {
+    font-size: 0.95rem;
+  }
+
+  .whiteboard small {
+    font-size: 0.78rem;
+  }
+
+  .teacher-desk {
+    min-height: 54px;
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 7px;
+    padding: 6px 7px;
+  }
+
+  .teacher-desk img {
+    width: 38px;
+    height: 38px;
+  }
+
+  .teacher-desk span {
+    font-size: 0.82rem;
+  }
+
+  .teacher-desk small {
+    font-size: 0.72rem;
+  }
+
+  .classroom-floor {
+    min-height: 0;
+    grid-template-columns: 52px minmax(0, 1fr) 52px;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .classroom-floor::after {
+    inset: 7px;
+    border-radius: 10px;
+  }
+
+  .seat-grid {
+    grid-template-columns: repeat(6, minmax(38px, 1fr));
+    grid-template-rows: repeat(4, minmax(54px, 1fr));
+    gap: 4px;
+  }
+
+  .class-seat {
+    min-height: 58px;
+  }
+
+  .chair-back {
+    bottom: 23px;
+    width: 34px;
+    height: 27px;
+    border-width: 2px;
+  }
+
+  .student-bust {
+    bottom: 27px;
+    width: 33px;
+    height: 30px;
+  }
+
+  .student-bust img {
+    top: -2px;
+    width: 56px;
+    height: 56px;
+  }
+
+  .desk-top {
+    bottom: 8px;
+    width: min(92%, 50px);
+    height: 22px;
+    border-width: 2px;
+  }
+
+  .desk-leg {
+    bottom: 0;
+    width: 4px;
+    height: 10px;
+  }
+
+  .desk-computer {
+    width: 24px;
+    height: 18px;
+  }
+
+  .desk-computer::before {
+    width: 22px;
+    height: 13px;
+    border-width: 2px;
+  }
+
+  .desk-computer span {
+    width: 16px;
+    height: 3px;
+  }
+
+  .desk-tablet {
+    width: 20px;
+    height: 16px;
+    border-width: 2px;
+  }
+
+  .desk-equipment-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .side-storage {
+    gap: 5px;
+  }
+
+  .shelf-prop,
+  .station-prop,
+  .overflow-learners {
+    min-height: 44px;
+    padding: 4px;
+    border-width: 2px;
+    border-radius: 8px;
+  }
+
+  .shelf-prop img,
+  .station-prop img {
+    width: 27px;
+    height: 27px;
+  }
+
+  .shelf-prop span,
+  .station-prop span,
+  .overflow-learners {
+    font-size: 0.74rem;
+  }
+
+  .side-panel {
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 7px;
+    overflow: hidden;
+    padding: 7px;
+  }
+
+  .pilot-section {
+    gap: 7px;
+    padding: 7px;
+  }
+
+  .dashboard-section {
+    position: static;
+  }
+
+  .pilot-section > header {
+    min-height: 28px;
+    font-size: 0.9rem;
+  }
+
+  .pilot-section > header small {
+    padding: 4px 6px;
+    font-size: 0.78rem;
+  }
+
+  .panel-header-actions {
+    gap: 5px;
+  }
+
+  .panel-lang {
+    padding: 2px;
+  }
+
+  .panel-lang .flag-button {
+    min-width: 40px;
+    min-height: 26px;
+    font-size: 0.72rem;
+  }
+
+  .panel-lang .flag-button span {
+    display: none;
+  }
+
+  .side-panel .resource-stack {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .side-panel .resource-pill,
+  .resource-pill {
+    min-height: 58px;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 0 4px;
+    padding: 5px;
+  }
+
+  .resource-pill img {
+    width: 22px;
+    height: 22px;
+  }
+
+  .resource-pill span {
+    font-size: 0.72rem;
+    line-height: 1.05;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .resource-pill strong {
+    font-size: 1rem;
+  }
+
+  .resource-pill small {
+    font-size: 0.66rem;
+  }
+
+  .bars-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .bar-block {
+    gap: 4px;
+  }
+
+  .bar-label {
+    gap: 6px;
+    font-size: 0.76rem;
+  }
+
+  .bar-track {
+    height: 8px;
+  }
+
+  .knowledge-meter small {
+    font-size: 0.68rem;
+  }
+
+  .pilot-tabs {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .pilot-tab {
+    min-height: 38px;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 4px;
+    padding: 5px;
+    font-size: 0.74rem;
+  }
+
+  .pilot-tab img {
+    width: 22px;
+    height: 22px;
+  }
+
+  .tab-section {
+    min-height: 0;
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .module-tab {
+    padding: 7px;
+  }
+
+  .module-section header {
+    min-height: 30px;
+    padding: 5px;
+    font-size: 0.88rem;
+  }
+
+  .module-section header img {
+    width: 20px;
+    height: 20px;
+  }
+
+  .module-lane,
+  .stations-tab .module-lane,
+  .protocols-tab .module-lane,
+  .action-grid,
+  .notes-tab-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .tab-section .module-node,
+  .stations-tab .module-node,
+  .protocols-tab .module-node {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .tab-section .node-icon,
+  .node-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .tab-section .node-icon img,
+  .node-icon img {
+    width: 22px;
+    height: 22px;
+  }
+
+  .tab-section .node-copy,
+  .node-copy {
+    gap: 5px;
+  }
+
+  .tab-section .node-copy h3,
+  .node-copy h3 {
+    font-size: 0.78rem;
+  }
+
+  .node-copy h3 em {
+    font-size: 0.65rem;
+  }
+
+  .tab-section .node-copy p,
+  .stations-tab .node-copy p,
+  .protocols-tab .node-copy p,
+  .node-copy p {
+    -webkit-line-clamp: 2;
+    font-size: 0.68rem;
+    line-height: 1.25;
+  }
+
+  .tab-section .module-node .paper-button,
+  .stations-tab .module-node .paper-button,
+  .protocols-tab .module-node .paper-button,
+  .module-node .paper-button {
+    min-height: 30px;
+    padding: 5px 6px;
+    font-size: 0.7rem;
+  }
+
+  .side-panel .action-card,
+  .action-card {
+    grid-template-columns: 32px minmax(0, 1fr);
+    min-height: 58px;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .side-panel .action-card img,
+  .action-card img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .action-card strong,
+  .action-card span {
+    font-size: 0.72rem;
+    line-height: 1.2;
+  }
+
+  .wide-notes {
+    min-height: 0;
+    overflow: hidden;
+    padding: 8px;
+  }
+
+  .wide-notes .bottom-card {
+    overflow: hidden;
+    padding: 8px;
+  }
+
+  .wide-notes .bottom-card h2,
+  .side-panel .bottom-card h2 {
+    font-size: 0.9rem;
+  }
+
+  .wide-notes .todo-list,
+  .wide-notes .journal-list,
+  .side-panel .todo-list,
+  .side-panel .journal-list {
+    gap: 4px;
+  }
+
+  .wide-notes .todo-list li,
+  .wide-notes .journal-list li,
+  .side-panel .todo-list li,
+  .side-panel .journal-list li {
+    font-size: 0.72rem;
+    line-height: 1.22;
+  }
+
+  .reset-corner {
+    position: static;
+    grid-column: 1 / -1;
+    justify-self: center;
+    margin: 0;
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-height: 540px) and (orientation: landscape) {
+  html {
+    font-size: 14px;
+  }
+
+  .game-shell {
+    grid-template-columns: minmax(286px, 43vw) minmax(340px, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .wide-notes {
+    display: none;
+  }
+
+  .welcome-card {
+    grid-template-columns: minmax(0, 0.95fr) minmax(240px, 0.8fr);
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .welcome-copy h1 {
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+  }
+
+  .welcome-form input,
+  .welcome-start {
+    min-height: 44px;
+  }
+
+  .level-select span {
+    min-height: 36px;
+  }
+
+  .welcome-visual {
+    min-height: 210px;
+  }
+
+  .welcome-token,
+  .welcome-path {
+    display: none;
+  }
+
+  .classroom-scene {
+    gap: 5px;
+  }
+
+  .classroom-topline {
+    flex-direction: row;
+    align-items: center;
+    min-height: 36px;
+    gap: 5px;
+    padding: 4px 6px;
+  }
+
+  .classroom-topline div {
+    gap: 5px;
+  }
+
+  .classroom-topline > div > span {
+    display: none;
+  }
+
+  .classroom-topline strong {
+    padding: 3px 6px;
+    font-size: 0.78rem;
+  }
+
+  .room-tab {
+    min-width: 56px;
+    min-height: 28px;
+    padding: 3px 5px;
+    font-size: 0.68rem;
+  }
+
+  .room-tab small {
+    display: none;
+  }
+
+  .classroom-room {
+    grid-template-rows: 46px minmax(0, 1fr);
+    border-width: 1px;
+    border-radius: 7px;
+  }
+
+  .classroom-wall {
+    grid-template-columns: minmax(0, 1fr) 84px;
+    gap: 5px;
+    padding: 5px 6px;
+  }
+
+  .whiteboard {
+    min-height: 36px;
+    gap: 1px;
+    padding: 4px 6px;
+    border-width: 1px;
+  }
+
+  .whiteboard span {
+    font-size: 0.72rem;
+  }
+
+  .whiteboard small {
+    font-size: 0.58rem;
+  }
+
+  .teacher-desk {
+    min-height: 36px;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .teacher-desk img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .teacher-desk span {
+    font-size: 0.66rem;
+  }
+
+  .teacher-desk small {
+    display: none;
+  }
+
+  .classroom-floor {
+    grid-template-columns: 32px minmax(0, 1fr) 32px;
+    gap: 3px;
+    padding: 5px;
+  }
+
+  .classroom-floor::after {
+    display: none;
+  }
+
+  .seat-grid {
+    grid-template-columns: repeat(6, minmax(28px, 1fr));
+    grid-template-rows: repeat(4, minmax(39px, 1fr));
+    gap: 3px;
+  }
+
+  .class-seat {
+    min-height: 40px;
+  }
+
+  .chair-back {
+    bottom: 16px;
+    width: 26px;
+    height: 20px;
+    border-width: 1px;
+  }
+
+  .student-bust {
+    bottom: 19px;
+    width: 25px;
+    height: 22px;
+    border-radius: 10px 10px 6px 6px;
+  }
+
+  .student-bust img {
+    top: -1px;
+    width: 42px;
+    height: 42px;
+  }
+
+  .desk-top {
+    bottom: 5px;
+    width: min(92%, 38px);
+    height: 16px;
+    border-width: 1px;
+  }
+
+  .desk-leg {
+    display: none;
+  }
+
+  .desk-computer {
+    width: 18px;
+    height: 13px;
+  }
+
+  .desk-computer::before {
+    width: 16px;
+    height: 9px;
+    border-width: 1px;
+  }
+
+  .desk-computer span {
+    display: none;
+  }
+
+  .desk-tablet {
+    width: 16px;
+    height: 12px;
+    border-width: 1px;
+  }
+
+  .desk-equipment-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .shelf-prop,
+  .station-prop,
+  .overflow-learners {
+    min-height: 34px;
+    padding: 2px;
+    border-width: 1px;
+    border-radius: 6px;
+  }
+
+  .shelf-prop img,
+  .station-prop img {
+    width: 21px;
+    height: 21px;
+  }
+
+  .shelf-prop span,
+  .station-prop span {
+    display: none;
+  }
+
+  .side-panel {
+    gap: 5px;
+    padding: 5px;
+    border-radius: 7px;
+  }
+
+  .pilot-section {
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .pilot-section > header {
+    min-height: 24px;
+    font-size: 0.78rem;
+  }
+
+  .pilot-section > header small {
+    font-size: 0.68rem;
+  }
+
+  .side-panel .resource-stack {
+    gap: 4px;
+  }
+
+  .side-panel .resource-pill,
+  .resource-pill {
+    min-height: 43px;
+    grid-template-columns: 18px minmax(0, 1fr);
+    padding: 4px;
+    border-left-width: 2px;
+  }
+
+  .resource-pill img {
+    width: 18px;
+    height: 18px;
+  }
+
+  .resource-pill span {
+    font-size: 0.62rem;
+    line-height: 1;
+  }
+
+  .resource-pill strong {
+    font-size: 0.82rem;
+  }
+
+  .resource-pill small {
+    display: none;
+  }
+
+  .bar-label {
+    font-size: 0.66rem;
+  }
+
+  .bar-track {
+    height: 6px;
+  }
+
+  .knowledge-meter small {
+    display: none;
+  }
+
+  .pilot-tab {
+    min-height: 30px;
+    grid-template-columns: 1fr;
+    place-items: center;
+    padding: 3px;
+    font-size: 0.62rem;
+  }
+
+  .pilot-tab img {
+    width: 19px;
+    height: 19px;
+  }
+
+  .pilot-tab span {
+    max-width: 100%;
+  }
+
+  .module-section header {
+    min-height: 26px;
+    padding: 4px;
+    font-size: 0.72rem;
+  }
+
+  .module-lane,
+  .stations-tab .module-lane,
+  .protocols-tab .module-lane,
+  .action-grid,
+  .notes-tab-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .tab-section .module-node,
+  .stations-tab .module-node,
+  .protocols-tab .module-node {
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .tab-section .node-icon,
+  .node-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .tab-section .node-icon img,
+  .node-icon img {
+    width: 19px;
+    height: 19px;
+  }
+
+  .tab-section .node-copy h3,
+  .node-copy h3 {
+    font-size: 0.68rem;
+  }
+
+  .tab-section .node-copy p,
+  .stations-tab .node-copy p,
+  .protocols-tab .node-copy p,
+  .node-copy p {
+    font-size: 0.58rem;
+    line-height: 1.18;
+  }
+
+  .tab-section .module-node .paper-button,
+  .stations-tab .module-node .paper-button,
+  .protocols-tab .module-node .paper-button,
+  .module-node .paper-button {
+    min-height: 26px;
+    padding: 4px;
+    font-size: 0.58rem;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 540px) and (orientation: landscape) {
+  .game-shell {
+    grid-template-columns: minmax(260px, 42vw) minmax(310px, 1fr);
+  }
+
+  .module-lane,
+  .stations-tab .module-lane,
+  .protocols-tab .module-lane,
+  .action-grid,
+  .notes-tab-grid {
+    grid-template-columns: 1fr;
   }
 }

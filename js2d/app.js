@@ -178,7 +178,8 @@
     { id: "teams", label: "Equipes", icon: "learners" },
     { id: "stations", label: "Stations", icon: "tools" },
     { id: "protocols", label: "Protocoles", icon: "mastery" },
-    { id: "actions", label: "Actions", icon: "cart" }
+    { id: "actions", label: "Actions", icon: "cart" },
+    { id: "notes", label: "Notes", icon: "resources" }
   ];
 
   const KNOWLEDGE = [
@@ -1318,6 +1319,16 @@
           <header><span>${escapeHtml(t("workshopActions"))}</span></header>
           <div class="action-grid">
             ${ACTIONS.map(renderAction).join("")}
+          </div>
+        </section>
+      `;
+    }
+    if (activeTab === "notes") {
+      return `
+        <section class="pilot-section tab-section notes-tab" role="tabpanel">
+          <div class="notes-tab-grid">
+            ${renderTodo()}
+            ${renderJournal()}
           </div>
         </section>
       `;
