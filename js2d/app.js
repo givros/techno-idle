@@ -677,8 +677,8 @@
             ${challenge.pool.map((step, index) => `<button type="button" data-seq-step="${index}" data-order="${step.order}">${escapeHtml(step.label)}</button>`).join("")}
           </div>
           <div class="sequence-actions">
-            <button class="paper-button buy" type="button" data-seq-validate>${escapeHtml(t("validateOrder"))}</button>
-            <button class="paper-button" type="button" data-seq-reset>${escapeHtml(t("restart"))}</button>
+            <button class="paper-button buy" type="button" data-seq-validate disabled>${escapeHtml(t("validateOrder"))}</button>
+            <button class="paper-button" type="button" data-seq-reset disabled>${escapeHtml(t("restart"))}</button>
           </div>
         </div>
       `;
@@ -714,8 +714,12 @@
 
     const selected = [];
     const output = modal.querySelector("[data-seq-output]");
+    const validateButton = modal.querySelector("[data-seq-validate]");
+    const resetButton = modal.querySelector("[data-seq-reset]");
     const updateOutput = () => {
       output.textContent = selected.length ? selected.map((step) => step.label).join(" -> ") : t("selectSequence");
+      resetButton.disabled = selected.length === 0;
+      validateButton.disabled = selected.length !== challenge.steps.length;
     };
 
     modal.querySelectorAll("[data-seq-step]").forEach((button) => {
@@ -727,13 +731,13 @@
       });
     });
 
-    modal.querySelector("[data-seq-reset]").addEventListener("click", () => {
+    resetButton.addEventListener("click", () => {
       selected.length = 0;
       modal.querySelectorAll("[data-seq-step]").forEach((button) => button.classList.remove("picked"));
       updateOutput();
     });
 
-    modal.querySelector("[data-seq-validate]").addEventListener("click", () => {
+    validateButton.addEventListener("click", () => {
       if (selected.length !== challenge.steps.length) {
         showToast(t("sequenceMissingToast"));
         return;
@@ -744,6 +748,7 @@
         feedback: correct ? I18N.translateChallengeText("L'ordre respecte la logique du systeme.", currentLang) : I18N.translateChallengeText("L'ordre contient au moins une inversion.", currentLang)
       });
     });
+    updateOutput();
   }
 
   function openChallenge(forced) {
