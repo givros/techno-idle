@@ -703,10 +703,6 @@
   }
 
   function bindChallengeEvents(modal, challenge) {
-    modal.querySelector(".modal-close").addEventListener("click", () => {
-      modal.remove();
-      if (modal.dataset.answered === "true") render({ preserveScroll: true });
-    });
     modal.querySelectorAll("[data-choice]").forEach((button) => {
       button.addEventListener("click", () => {
         const list = challenge.type === "classify" ? challenge.categories : challenge.choices;
@@ -768,7 +764,6 @@
     modal.className = "modal-backdrop";
     modal.innerHTML = `
       <section class="modal-card challenge-modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(t("challengeDialog"))}">
-        <button class="modal-close" type="button" aria-label="${escapeHtml(t("close"))}">X</button>
         <div class="modal-head">
           <img src="${ASSETS[challenge.icon] || ASSETS.incident}" alt="" />
           <div>

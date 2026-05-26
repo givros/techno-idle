@@ -2197,12 +2197,16 @@ body[data-level="3e"] {
   display: grid;
   place-items: center;
   padding: 20px;
+  overflow: hidden;
   background: rgba(21, 24, 18, 0.45);
 }
 
 .modal-card {
   width: min(620px, 100%);
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   padding: 18px;
+  overflow: auto;
   background: #fffdf4;
   position: relative;
 }
@@ -2217,7 +2221,6 @@ body[data-level="3e"] {
   grid-template-columns: 74px minmax(0, 1fr);
   gap: 14px;
   align-items: center;
-  padding-right: 40px;
 }
 
 .modal-head img {
@@ -2287,6 +2290,11 @@ body[data-level="3e"] {
   color: var(--muted);
   font-size: 0.95rem;
   font-weight: 850;
+}
+
+.challenge-modal.is-correct .challenge-bank-note,
+.challenge-modal.is-wrong .challenge-bank-note {
+  display: none;
 }
 
 .sequence-builder {
@@ -3315,9 +3323,13 @@ body[data-level="3e"] {
   }
 
   .classroom-floor {
-    grid-template-columns: 32px minmax(0, 1fr) 32px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 3px;
     padding: 5px;
+  }
+
+  .side-storage {
+    display: none;
   }
 
   .classroom-floor::after {
@@ -3490,6 +3502,115 @@ body[data-level="3e"] {
     max-width: 100%;
   }
 
+  .modal-backdrop {
+    padding: 6px;
+  }
+
+  .modal-card {
+    width: min(94vw, 720px);
+    max-height: calc(100vh - 12px);
+    max-height: calc(100dvh - 12px);
+    padding: 10px;
+    border-radius: 8px;
+  }
+
+  .modal-card h2 {
+    font-size: 0.98rem;
+    line-height: 1.15;
+  }
+
+  .modal-head {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .modal-head img {
+    width: 42px;
+    height: 42px;
+  }
+
+  .challenge-modal .side-counter {
+    min-height: 0;
+    margin-bottom: 4px !important;
+    padding: 4px 7px;
+    font-size: 0.68rem;
+  }
+
+  .question {
+    margin: 8px 0;
+    font-size: 0.82rem;
+    line-height: 1.28;
+  }
+
+  .choice-list,
+  .sequence-builder,
+  .classify-box {
+    gap: 6px;
+  }
+
+  .choice-list button,
+  .sequence-pool button {
+    min-height: 34px;
+    padding: 5px 7px;
+    border-width: 2px;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    line-height: 1.16;
+  }
+
+  .choice-list.trueFalse button {
+    min-height: 38px;
+    font-size: 0.78rem;
+  }
+
+  .sequence-slots {
+    min-height: 36px;
+    padding: 7px 8px;
+    border-width: 2px;
+    border-radius: 8px;
+    font-size: 0.72rem;
+  }
+
+  .sequence-actions {
+    gap: 6px;
+  }
+
+  .classify-item {
+    min-height: 38px;
+    padding: 7px;
+    border-width: 2px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+  }
+
+  .challenge-bank-note {
+    margin-top: 7px;
+    font-size: 0.68rem;
+  }
+
+  .challenge-result {
+    gap: 6px;
+    margin-top: 8px;
+    padding: 8px;
+    border-width: 2px;
+    border-radius: 8px;
+  }
+
+  .challenge-result h3 {
+    font-size: 0.9rem;
+  }
+
+  .challenge-result p {
+    font-size: 0.72rem;
+    line-height: 1.24;
+  }
+
+  .challenge-result .paper-button {
+    min-width: 128px;
+    min-height: 32px;
+    font-size: 0.72rem;
+  }
+
   .module-section header {
     min-height: 26px;
     padding: 4px;
@@ -3550,7 +3671,7 @@ body[data-level="3e"] {
 
 @media (max-width: 760px) and (max-height: 540px) and (orientation: landscape) {
   .game-shell {
-    grid-template-columns: minmax(260px, 42vw) minmax(310px, 1fr);
+    grid-template-columns: minmax(214px, 42vw) minmax(0, 1fr);
   }
 
   .module-lane,
