@@ -5,7 +5,32 @@
     "3e": { label: "3e", reward: { mastery: 16, resources: 8, badges: 1 }, penalty: { disorder: 8, motivation: -4 } }
   };
 
-  const TYPES = ["single", "trueFalse", "sequence", "classify", "diagnostic", "decision"];
+  const TYPES = [
+    "single",
+    "wordMystery",
+    "wordCatch",
+    "crossword",
+    "arrowWord",
+    "definitionLink",
+    "cloze",
+    "folderSort",
+    "schemaSpot",
+    "chainRepair",
+    "debugBlocks",
+    "variableTrace",
+    "conditionLoop",
+    "aiTraining",
+    "specFilter",
+    "mapExplore",
+    "assembly",
+    "compare",
+    "miniInvestigation",
+    "trueFalse",
+    "sequence",
+    "classify",
+    "diagnostic",
+    "decision"
+  ];
 
   const TYPE_LABELS = {
     single: "Choix cible",
@@ -13,7 +38,25 @@
     sequence: "Ordre logique",
     classify: "Classement",
     diagnostic: "Diagnostic",
-    decision: "Decision"
+    decision: "Decision",
+    wordMystery: "Mot mystere",
+    wordCatch: "Mots a attraper",
+    crossword: "Mot croise",
+    arrowWord: "Mot fleche",
+    definitionLink: "Definitions",
+    cloze: "Texte a completer",
+    folderSort: "Dossier a trier",
+    schemaSpot: "Erreur de schema",
+    chainRepair: "Chaine a reparer",
+    debugBlocks: "Debug Scratch",
+    variableTrace: "Variable",
+    conditionLoop: "Condition ou boucle",
+    aiTraining: "Donnees d'entrainement",
+    specFilter: "Cahier des charges",
+    mapExplore: "Carte a explorer",
+    assembly: "Table de montage",
+    compare: "Comparateur",
+    miniInvestigation: "Mini-enquete"
   };
 
   const SITUATION_DETAILS = [
@@ -32,7 +75,7 @@
     "la verification des mesures",
     "l'amelioration du programme",
     "la lecture d'un schema",
-    "la preparation d'une fiche technique",
+    "la preparation d'un document technique",
     "un test utilisateur",
     "la correction d'une erreur",
     "la mesure d'une performance",
@@ -325,6 +368,753 @@
     return { label, correct, feedback };
   }
 
+  function enValue(value) {
+    if (typeof value === "string") {
+      return window.TechnoI18n?.translateChallengeText(value, "en") || value;
+    }
+    if (Array.isArray(value)) return value.map(enValue);
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, enValue(item)]));
+    }
+    return value;
+  }
+
+  function withEnglish(challenge) {
+    const fields = [
+      "title",
+      "prompt",
+      "coursePoint",
+      "choices",
+      "categories",
+      "steps",
+      "pool",
+      "clues",
+      "pairs",
+      "items",
+      "folders",
+      "hotspots",
+      "blocks",
+      "trace",
+      "cards",
+      "components",
+      "wordBank",
+      "answers",
+      "parts",
+      "cells",
+      "rows",
+      "letters",
+      "gridSize",
+      "sceneTitle",
+      "target",
+      "successFeedback",
+      "failureFeedback"
+    ];
+    const en = {};
+    fields.forEach((field) => {
+      if (challenge[field] !== undefined) en[field] = enValue(challenge[field]);
+    });
+    return { ...challenge, en: { ...en, ...(challenge.en || {}) } };
+  }
+
+  function uniqueChoices(choices) {
+    const seen = new Set();
+    return choices.filter((item) => {
+      const key = String(item.label || item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function concept(theme, level, index, offset = 0) {
+    return pick(theme.concepts[level], index + offset);
+  }
+
+  function classification(theme, level, index, offset = 0) {
+    return pick(theme.classifications[level], index + offset);
+  }
+
+  function diagnostic(theme, level, index, offset = 0) {
+    return pick(theme.diagnostics[level], index + offset);
+  }
+
+  function decision(theme, level, index, offset = 0) {
+    return pick(theme.decisions[level], index + offset);
+  }
+
+  function themeAssembly(theme) {
+    const packs = {
+      ai: ["jeu de donnees varie", "critere de test", "exemples equilibres", "moteur plus gros sans calcul", "donnees personnelles publiees"],
+      energy: ["source adaptee", "moteur dimensionne", "mesure des pertes", "capteur decoratif", "voyant inutile"],
+      scratch: ["evenement de depart", "condition claire", "variable utile", "batterie enorme", "roue supplementaire"],
+      locomotion: ["frein adapte", "transmission coherente", "test d'usage", "serveur inutile", "donnees personnelles publiees"],
+      energyChain: ["alimenter", "convertir", "transmettre", "classer des images", "envoyer un message"],
+      informationChain: ["acquerir", "traiter", "communiquer", "stocker de l'energie", "faire tourner une roue"]
+    };
+    return packs[theme.id] || packs.scratch;
+  }
+
+  function mapTarget(theme) {
+    const targets = {
+      ai: "ilot donnees",
+      energy: "banc energie",
+      scratch: "poste programmation",
+      locomotion: "piste d'essai",
+      energyChain: "chaine d'energie",
+      informationChain: "chaine d'information"
+    };
+    return targets[theme.id] || "poste de test";
+  }
+
+  function normalizePuzzleText(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .replace(/[^A-Z]/g, " ")
+      .trim();
+  }
+
+  const PUZZLE_TERMS = {
+    ai: {
+      "5e": [
+        { word: "DONNEE", label: "donnee", clue: "Information donnee au systeme.", en: { word: "DATA", label: "data", clue: "Information given to the system." } },
+        { word: "MODELE", label: "modele", clue: "Regle apprise avec des exemples.", en: { word: "MODEL", label: "model", clue: "Rule learned from examples." } },
+        { word: "TEST", label: "test", clue: "Essai qui verifie une reponse.", en: { word: "TEST", label: "test", clue: "Trial used to check an answer." } },
+        { word: "EXEMPLE", label: "exemple", clue: "Cas donne pour apprendre.", en: { word: "EXAMPLE", label: "example", clue: "Case used for learning." } }
+      ],
+      "4e": [
+        { word: "BIAIS", label: "biais", clue: "Desequilibre qui peut fausser une reponse.", en: { word: "BIAS", label: "bias", clue: "Imbalance that can distort an answer." } },
+        { word: "TEST", label: "test", clue: "Jeu garde pour verifier le modele.", en: { word: "TEST", label: "test", clue: "Set kept to check the model." } },
+        { word: "TRI", label: "tri", clue: "Rangement dans des groupes.", en: { word: "SORT", label: "sort", clue: "Putting items into groups." } },
+        { word: "SCORE", label: "score", clue: "Nombre qui resume un resultat.", en: { word: "SCORE", label: "score", clue: "Number that sums up a result." } }
+      ],
+      "3e": [
+        { word: "DONNEE", label: "donnee", clue: "Information utilisee par le modele.", en: { word: "DATA", label: "data", clue: "Information used by the model." } },
+        { word: "CRITERE", label: "critere", clue: "Point mesure pour juger un resultat.", en: { word: "CRITERIA", label: "criteria", clue: "Point measured to judge a result." } },
+        { word: "MODELE", label: "modele", clue: "Systeme qui apprend a partir de donnees.", en: { word: "MODEL", label: "model", clue: "System that learns from data." } },
+        { word: "PRIVE", label: "prive", clue: "A proteger quand une donnee identifie quelqu'un.", en: { word: "PRIVATE", label: "private", clue: "To protect when data identifies someone." } }
+      ]
+    },
+    energy: {
+      "5e": [
+        { word: "PILE", label: "pile", clue: "Petite source d'energie electrique.", en: { word: "CELL", label: "cell", clue: "Small source of electrical energy." } },
+        { word: "MOTEUR", label: "moteur", clue: "Element qui produit un mouvement.", en: { word: "MOTOR", label: "motor", clue: "Part that produces movement." } },
+        { word: "LAMPE", label: "lampe", clue: "Element qui transforme l'electricite en lumiere.", en: { word: "LAMP", label: "lamp", clue: "Part that turns electricity into light." } },
+        { word: "SOURCE", label: "source", clue: "Ce qui fournit l'energie.", en: { word: "SOURCE", label: "source", clue: "What supplies energy." } }
+      ],
+      "4e": [
+        { word: "PERTE", label: "perte", clue: "Energie recue mais non utile.", en: { word: "LOSS", label: "loss", clue: "Energy received but not useful." } },
+        { word: "SOURCE", label: "source", clue: "Origine de l'energie du systeme.", en: { word: "SOURCE", label: "source", clue: "Origin of the system's energy." } },
+        { word: "MOTEUR", label: "moteur", clue: "Element qui convertit en mouvement.", en: { word: "MOTOR", label: "motor", clue: "Part that converts into movement." } },
+        { word: "BATTERIE", label: "batterie", clue: "Element qui stocke de l'energie.", en: { word: "BATTERY", label: "battery", clue: "Part that stores energy." } }
+      ],
+      "3e": [
+        { word: "BILAN", label: "bilan", clue: "Comparaison entre energie recue, utile et perdue.", en: { word: "AUDIT", label: "audit", clue: "Comparison of input, useful and lost energy." } },
+        { word: "IMPACT", label: "impact", clue: "Effet d'un choix sur l'environnement.", en: { word: "IMPACT", label: "impact", clue: "Effect of a choice on the environment." } },
+        { word: "SOBRIETE", label: "sobriete", clue: "Reduire le besoin avant d'ajouter de la puissance.", en: { word: "SAVING", label: "saving", clue: "Reducing need before adding power." } },
+        { word: "SOURCE", label: "source", clue: "Origine de l'energie choisie.", en: { word: "SOURCE", label: "source", clue: "Origin of the chosen energy." } }
+      ]
+    },
+    scratch: {
+      "5e": [
+        { word: "BOUCLE", label: "boucle", clue: "Bloc qui repete des instructions.", en: { word: "LOOP", label: "loop", clue: "Block that repeats instructions." } },
+        { word: "TEST", label: "test", clue: "Verification avant de valider un programme.", en: { word: "TEST", label: "test", clue: "Check before accepting a program." } },
+        { word: "LUTIN", label: "lutin", clue: "Objet programmable dans Scratch.", en: { word: "SPRITE", label: "sprite", clue: "Programmable object in Scratch." } },
+        { word: "ACTION", label: "action", clue: "Ce que le programme fait faire.", en: { word: "ACTION", label: "action", clue: "What the program makes happen." } }
+      ],
+      "4e": [
+        { word: "VARIABLE", label: "variable", clue: "Memoire qui change pendant le programme.", en: { word: "VARIABLE", label: "variable", clue: "Memory that changes during the program." } },
+        { word: "MESSAGE", label: "message", clue: "Signal envoye entre scripts.", en: { word: "MESSAGE", label: "message", clue: "Signal sent between scripts." } },
+        { word: "CAPTEUR", label: "capteur", clue: "Entree qui fournit une information.", en: { word: "SENSOR", label: "sensor", clue: "Input that provides information." } },
+        { word: "TEST", label: "test", clue: "Condition qui verifie vrai ou faux.", en: { word: "TEST", label: "test", clue: "Condition that checks true or false." } }
+      ],
+      "3e": [
+        { word: "LISTE", label: "liste", clue: "Structure qui stocke plusieurs valeurs.", en: { word: "LIST", label: "list", clue: "Structure storing several values." } },
+        { word: "DEBUG", label: "debug", clue: "Recherche et correction d'une erreur.", en: { word: "DEBUG", label: "debug", clue: "Finding and fixing a mistake." } },
+        { word: "TEST", label: "test", clue: "Essai pour verifier un comportement.", en: { word: "TEST", label: "test", clue: "Trial to check behavior." } },
+        { word: "MODULE", label: "module", clue: "Bloc de programme reutilisable.", en: { word: "MODULE", label: "module", clue: "Reusable program block." } }
+      ]
+    },
+    locomotion: {
+      "5e": [
+        { word: "ROUE", label: "roue", clue: "Piece qui facilite le roulement.", en: { word: "WHEEL", label: "wheel", clue: "Part that helps rolling." } },
+        { word: "FREIN", label: "frein", clue: "Systeme qui ralentit ou arrete.", en: { word: "BRAKE", label: "brake", clue: "System that slows or stops." } },
+        { word: "TRAIN", label: "train", clue: "Moyen de transport sur rails.", en: { word: "TRAIN", label: "train", clue: "Transport that runs on rails." } },
+        { word: "VELO", label: "velo", clue: "Moyen de transport a pedales.", en: { word: "BIKE", label: "bike", clue: "Pedal-powered transport." } }
+      ],
+      "4e": [
+        { word: "FREIN", label: "frein", clue: "Organe essentiel pour la securite.", en: { word: "BRAKE", label: "brake", clue: "Key part for safety." } },
+        { word: "ROUE", label: "roue", clue: "Element en contact avec le sol.", en: { word: "WHEEL", label: "wheel", clue: "Part in contact with the ground." } },
+        { word: "COUPLE", label: "couple", clue: "Effort de rotation d'un moteur.", en: { word: "TORQUE", label: "torque", clue: "Rotating force from a motor." } },
+        { word: "SECURITE", label: "securite", clue: "Protection des usagers.", en: { word: "SAFETY", label: "safety", clue: "Protection for users." } }
+      ],
+      "3e": [
+        { word: "USAGE", label: "usage", clue: "Maniere reelle d'utiliser un transport.", en: { word: "USE", label: "use", clue: "Real way a transport is used." } },
+        { word: "IMPACT", label: "impact", clue: "Effet sur les ressources et emissions.", en: { word: "IMPACT", label: "impact", clue: "Effect on resources and emissions." } },
+        { word: "VELO", label: "velo", clue: "Solution adaptee a certains trajets courts.", en: { word: "BIKE", label: "bike", clue: "Solution suited to some short trips." } },
+        { word: "TRAJET", label: "trajet", clue: "Parcours realise par l'utilisateur.", en: { word: "TRIP", label: "trip", clue: "Journey made by the user." } }
+      ]
+    },
+    energyChain: {
+      "5e": [
+        { word: "PILE", label: "pile", clue: "Element qui alimente le systeme.", en: { word: "CELL", label: "cell", clue: "Part that powers the system." } },
+        { word: "MOTEUR", label: "moteur", clue: "Element qui convertit en mouvement.", en: { word: "MOTOR", label: "motor", clue: "Part that converts into movement." } },
+        { word: "ROUE", label: "roue", clue: "Element qui recoit le mouvement.", en: { word: "WHEEL", label: "wheel", clue: "Part receiving movement." } },
+        { word: "CABLE", label: "cable", clue: "Element qui conduit l'electricite.", en: { word: "WIRE", label: "wire", clue: "Part that carries electricity." } }
+      ],
+      "4e": [
+        { word: "MOTEUR", label: "moteur", clue: "Actionneur qui produit un mouvement.", en: { word: "MOTOR", label: "motor", clue: "Actuator that creates movement." } },
+        { word: "BATTERIE", label: "batterie", clue: "Stockage d'energie electrique.", en: { word: "BATTERY", label: "battery", clue: "Storage for electrical energy." } },
+        { word: "RELAIS", label: "relais", clue: "Commande la puissance vers un moteur.", en: { word: "RELAY", label: "relay", clue: "Controls power sent to a motor." } },
+        { word: "PERTE", label: "perte", clue: "Energie dissipee sans action utile.", en: { word: "LOSS", label: "loss", clue: "Energy dissipated without useful action." } }
+      ],
+      "3e": [
+        { word: "SOURCE", label: "source", clue: "Origine de l'energie.", en: { word: "SOURCE", label: "source", clue: "Origin of energy." } },
+        { word: "PERTES", label: "pertes", clue: "Energie non utilisee efficacement.", en: { word: "LOSSES", label: "losses", clue: "Energy not used effectively." } },
+        { word: "ACTION", label: "action", clue: "Effet obtenu en fin de chaine.", en: { word: "ACTION", label: "action", clue: "Effect obtained at the end of the chain." } },
+        { word: "IMPACT", label: "impact", clue: "Effet technique ou environnemental.", en: { word: "IMPACT", label: "impact", clue: "Technical or environmental effect." } }
+      ]
+    },
+    informationChain: {
+      "5e": [
+        { word: "CAPTEUR", label: "capteur", clue: "Composant qui detecte ou mesure.", en: { word: "SENSOR", label: "sensor", clue: "Part that detects or measures." } },
+        { word: "SIGNAL", label: "signal", clue: "Information transmise par le systeme.", en: { word: "SIGNAL", label: "signal", clue: "Information sent by the system." } },
+        { word: "ECRAN", label: "ecran", clue: "Element qui affiche une information.", en: { word: "SCREEN", label: "screen", clue: "Part that displays information." } },
+        { word: "CABLE", label: "cable", clue: "Liaison qui transporte une information.", en: { word: "CABLE", label: "cable", clue: "Link that carries information." } }
+      ],
+      "4e": [
+        { word: "RESEAU", label: "reseau", clue: "Ensemble d'equipements qui communiquent.", en: { word: "NETWORK", label: "network", clue: "Set of devices that communicate." } },
+        { word: "DONNEE", label: "donnee", clue: "Information stockee ou transmise.", en: { word: "DATA", label: "data", clue: "Information stored or sent." } },
+        { word: "CAPTEUR", label: "capteur", clue: "Entree qui mesure une grandeur.", en: { word: "SENSOR", label: "sensor", clue: "Input that measures something." } },
+        { word: "SIGNAL", label: "signal", clue: "Information qui circule dans le systeme.", en: { word: "SIGNAL", label: "signal", clue: "Information moving through the system." } }
+      ],
+      "3e": [
+        { word: "DONNEE", label: "donnee", clue: "Information a proteger ou traiter.", en: { word: "DATA", label: "data", clue: "Information to protect or process." } },
+        { word: "SERVEUR", label: "serveur", clue: "Ordinateur qui rend un service sur le reseau.", en: { word: "SERVER", label: "server", clue: "Computer providing a network service." } },
+        { word: "RESEAU", label: "reseau", clue: "Liaison entre plusieurs equipements.", en: { word: "NETWORK", label: "network", clue: "Link between several devices." } },
+        { word: "ACCES", label: "acces", clue: "Droit d'utiliser une donnee ou un service.", en: { word: "ACCESS", label: "access", clue: "Right to use data or a service." } }
+      ]
+    }
+  };
+
+  function puzzleTerms(theme, level, index, lang = "fr") {
+    const source = PUZZLE_TERMS[theme.id]?.[level] || PUZZLE_TERMS[theme.id]?.["5e"] || PUZZLE_TERMS.scratch["5e"];
+    return rotatedChoices(source, index).map((term) => {
+      const localized = lang === "en" ? term.en || {} : {};
+      const word = normalizePuzzleText(localized.word || term.word).replace(/\s+/g, "").slice(0, 10);
+      return {
+        word,
+        label: localized.label || term.label,
+        clue: localized.clue || term.clue
+      };
+    }).filter((term) => /^[A-Z]{3,10}$/.test(term.word));
+  }
+
+  function puzzleWord(label) {
+    const tokens = normalizePuzzleText(label).split(/\s+/).filter(Boolean);
+    const candidate = tokens
+      .filter((token) => token.length >= 3)
+      .sort((a, b) => Math.abs(6 - a.length) - Math.abs(6 - b.length) || b.length - a.length)[0]
+      || tokens.join("")
+      || "TECHNO";
+    return candidate.slice(0, 10);
+  }
+
+  function findSharedLetter(first, second) {
+    for (let firstIndex = 0; firstIndex < first.length; firstIndex += 1) {
+      for (let secondIndex = 0; secondIndex < second.length; secondIndex += 1) {
+        if (first[firstIndex] === second[secondIndex]) return { firstIndex, secondIndex };
+      }
+    }
+    return null;
+  }
+
+  function puzzleLetters(words, seed) {
+    const letters = [...new Set(words.join("").split(""))];
+    "AEIOURSTLNMCGPDBF".split("").forEach((letter) => {
+      if (letters.length < 12 && !letters.includes(letter)) letters.push(letter);
+    });
+    return rotatedChoices(letters, seed);
+  }
+
+  function clueWithLength(clue, word, letterLabel) {
+    return `${clue} (${word.length} ${letterLabel})`;
+  }
+
+  function buildCrosswordData(terms, seed, letterLabel = "lettres") {
+    const items = terms.length >= 2 ? terms : puzzleTerms(THEMES[0], "5e", seed);
+    const firstItem = items[0];
+    const firstWord = firstItem.word || puzzleWord(firstItem.label);
+    let secondItem = items[1] || items[0];
+    let secondWord = secondItem.word || puzzleWord(secondItem.label);
+    let cross = findSharedLetter(firstWord, secondWord);
+    for (let index = 1; index < items.length && !cross; index += 1) {
+      const candidate = items[index].word || puzzleWord(items[index].label);
+      const candidateCross = findSharedLetter(firstWord, candidate);
+      if (candidateCross) {
+        secondItem = items[index];
+        secondWord = candidate;
+        cross = candidateCross;
+      }
+    }
+    if (!cross) {
+      secondItem = { word: `${firstWord[0]}TEST`, label: "test", clue: "Mot de secours pour completer la grille." };
+      secondWord = secondItem.word;
+      cross = { firstIndex: 0, secondIndex: 0 };
+    }
+
+    const cells = [];
+    const addCell = (row, col, answer, label = "") => {
+      const existing = cells.find((cell) => cell.row === row && cell.col === col);
+      if (existing) {
+        if (label) existing.label = existing.label ? `${existing.label}/${label}` : label;
+        return;
+      }
+      cells.push({ row, col, answer, label });
+    };
+    for (let col = 0; col < firstWord.length; col += 1) {
+      addCell(cross.secondIndex, col, firstWord[col], col === 0 ? "1" : "");
+    }
+    for (let row = 0; row < secondWord.length; row += 1) {
+      addCell(row, cross.firstIndex, secondWord[row], row === 0 ? "2" : "");
+    }
+
+    return {
+      gridSize: { rows: secondWord.length, cols: firstWord.length },
+      cells: cells.sort((a, b) => a.row - b.row || a.col - b.col),
+      clues: [
+        `1 -> ${clueWithLength(firstItem.clue, firstWord, letterLabel)}`,
+        `2 v ${clueWithLength(secondItem.clue, secondWord, letterLabel)}`
+      ],
+      letters: puzzleLetters([firstWord, secondWord], seed),
+      answers: [firstWord, secondWord],
+      wordBank: items.slice(0, 4).map((item) => item.label)
+    };
+  }
+
+  function buildArrowWordData(terms, seed, letterLabel = "lettres") {
+    const items = terms.length >= 3 ? terms : puzzleTerms(THEMES[0], "5e", seed);
+    const rows = items.slice(0, 3).map((item, index) => ({
+      clue: clueWithLength(item.clue, item.word, letterLabel),
+      label: item.label,
+      answer: item.word || puzzleWord(item.label),
+      index: index + 1
+    }));
+    return {
+      rows,
+      letters: puzzleLetters(rows.map((row) => row.answer), seed),
+      answers: rows.map((row) => row.answer),
+      wordBank: items.slice(0, 4).map((item) => item.label)
+    };
+  }
+
+  function buildMiniChallenge(theme, level, type, index, context, situation, challenge) {
+    if (type === "wordMystery") {
+      const item = concept(theme, level, index);
+      const next = concept(theme, level, index, 1);
+      return withEnglish({
+        ...challenge,
+        interaction: "choice",
+        title: `${theme.label} : mot mystere`,
+        prompt: `Atelier : ${situation}. Quel mot de techno correspond a cette definition pour ${context} ?`,
+        coursePoint: `A retenir : "${item[0]}" veut dire ${item[1]}. Avant de choisir une solution, on nomme d'abord ce que l'on observe.`,
+        clues: [
+          `Definition : ${item[1]}.`,
+          `Theme : ${theme.label}.`,
+          `Situation : ${situation}.`
+        ],
+        choices: rotatedChoices(uniqueChoices([
+          choice(item[0], true, "Oui, c'est le bon mot."),
+          choice(item[2], false, "Non : ce mot appartient a une autre partie du systeme."),
+          choice(item[3], false, "Non : ce mot ne correspond pas a la definition."),
+          choice(next[0], false, "Presque, mais la definition demandee est differente.")
+        ]), index)
+      });
+    }
+
+    if (type === "wordCatch") {
+      const first = concept(theme, level, index);
+      const second = concept(theme, level, index, 1);
+      return withEnglish({
+        ...challenge,
+        interaction: "multiSelect",
+        title: `${theme.label} : mots a attraper`,
+        prompt: `Atelier : ${situation}. Selectionne seulement les deux mots utiles pour ${context}.`,
+        coursePoint: `Les deux mots a garder sont "${first[0]}" et "${second[0]}". Les autres mots sont des intrus pour cette situation.`,
+        successFeedback: "Bon tri : les deux mots utiles sont selectionnes.",
+        failureFeedback: "Reverifie : il faut deux mots utiles, sans intrus.",
+        choices: rotatedChoices(uniqueChoices([
+          choice(first[0], true, "A garder."),
+          choice(second[0], true, "A garder."),
+          choice(first[2], false, "Intrus pour cette situation."),
+          choice(second[3], false, "Intrus pour cette situation."),
+          choice(first[3], false, "Intrus pour cette situation.")
+        ]), index)
+      });
+    }
+
+    if (type === "crossword") {
+      const puzzleSeed = index + Math.floor(index / TYPES.length);
+      const terms = puzzleTerms(theme, level, puzzleSeed, "fr");
+      const puzzle = buildCrosswordData(terms, puzzleSeed, "lettres");
+      const enTerms = puzzleTerms(theme, level, puzzleSeed, "en");
+      const enPuzzle = buildCrosswordData(enTerms, puzzleSeed, "letters");
+      return withEnglish({
+        ...challenge,
+        interaction: "wordGrid",
+        title: `${theme.label} : mot croise`,
+        prompt: `Atelier : ${situation}. Complete le mot croise avec la banque de mots du theme ${theme.label}.`,
+        coursePoint: `Utilise les definitions, le nombre de lettres et la banque de mots pour retrouver le vocabulaire du cours.`,
+        clues: puzzle.clues,
+        gridSize: puzzle.gridSize,
+        cells: puzzle.cells,
+        letters: puzzle.letters,
+        answers: puzzle.answers,
+        wordBank: puzzle.wordBank,
+        successFeedback: "La grille est complete.",
+        failureFeedback: "Au moins une lettre ne correspond pas au mot attendu.",
+        en: {
+          title: `${enValue(theme.label)}: crossword`,
+          prompt: `Workshop: ${enValue(situation)}. Complete the crossword with the ${enValue(theme.label)} word bank.`,
+          coursePoint: "Use the clues, letter count and word bank to find the course vocabulary.",
+          clues: enPuzzle.clues,
+          gridSize: enPuzzle.gridSize,
+          cells: enPuzzle.cells,
+          letters: enPuzzle.letters,
+          answers: enPuzzle.answers,
+          wordBank: enPuzzle.wordBank,
+          successFeedback: "The grid is complete.",
+          failureFeedback: "At least one letter does not match the expected word."
+        }
+      });
+    }
+
+    if (type === "arrowWord") {
+      const puzzleSeed = index + Math.floor(index / TYPES.length);
+      const terms = puzzleTerms(theme, level, puzzleSeed, "fr");
+      const puzzle = buildArrowWordData(terms, puzzleSeed, "lettres");
+      const enTerms = puzzleTerms(theme, level, puzzleSeed, "en");
+      const enPuzzle = buildArrowWordData(enTerms, puzzleSeed, "letters");
+      return withEnglish({
+        ...challenge,
+        interaction: "arrowWords",
+        title: `${theme.label} : mot fleche`,
+        prompt: `Atelier ${theme.label} : ${situation}. Lis chaque definition, puis complete les mots fleches avec la banque de mots.`,
+        coursePoint: `Le nombre de lettres et la banque de mots aident a choisir le bon vocabulaire sans deviner au hasard.`,
+        rows: puzzle.rows,
+        letters: puzzle.letters,
+        answers: puzzle.answers,
+        wordBank: puzzle.wordBank,
+        successFeedback: "Les mots fleches sont completes.",
+        failureFeedback: "Une ligne contient encore une mauvaise lettre.",
+        en: {
+          title: `${enValue(theme.label)}: arrow words`,
+          prompt: `${enValue(theme.label)} workshop: ${enValue(situation)}. Read each clue, then complete the arrow words with the word bank.`,
+          coursePoint: "The letter count and word bank help you choose the right vocabulary without guessing.",
+          rows: enPuzzle.rows,
+          letters: enPuzzle.letters,
+          answers: enPuzzle.answers,
+          wordBank: enPuzzle.wordBank,
+          successFeedback: "The arrow words are complete.",
+          failureFeedback: "One line still contains a wrong letter."
+        }
+      });
+    }
+
+    if (type === "definitionLink") {
+      const pairs = [0, 1, 2].map((offset) => {
+        const item = concept(theme, level, index, offset);
+        return { left: item[0], right: item[1] };
+      });
+      return withEnglish({
+        ...challenge,
+        interaction: "matching",
+        title: `${theme.label} : definitions`,
+        prompt: `Contexte : ${context}. Atelier : ${situation}. Relie chaque mot a la bonne definition.`,
+        coursePoint: `Quand le vocabulaire est clair, on evite de confondre une piece, une fonction et une action.`,
+        successFeedback: "Les mots sont relies aux bonnes definitions.",
+        failureFeedback: "Une association est a reprendre.",
+        pairs
+      });
+    }
+
+    if (type === "cloze") {
+      const first = concept(theme, level, index);
+      const second = concept(theme, level, index, 1);
+      return withEnglish({
+        ...challenge,
+        interaction: "cloze",
+        title: `${theme.label} : texte a completer`,
+        prompt: `Pour ${context}, pendant ${situation}, complete la phrase avec les deux mots qui conviennent.`,
+        coursePoint: `Ici, l'ordre attendu est "${first[0]}" puis "${second[0]}". Un mot mal place change le sens.`,
+        parts: [`Pour ${context}, on repere d'abord `, ", puis on utilise ", " pour expliquer le choix."],
+        answers: [first[0], second[0]],
+        wordBank: rotatedChoices([first[0], second[0], first[2], second[3]], index),
+        successFeedback: "Phrase correcte.",
+        failureFeedback: "La phrase ne garde pas le bon sens technique."
+      });
+    }
+
+    if (type === "folderSort") {
+      const first = classification(theme, level, index);
+      const second = classification(theme, level, index, 1);
+      const folders = uniqueChoices([
+        { id: first[1], label: first[1] },
+        { id: second[1], label: second[1] },
+        { id: "hors sujet", label: "hors sujet" }
+      ]);
+      return withEnglish({
+        ...challenge,
+        interaction: "folderSort",
+        title: `${theme.label} : dossier a trier`,
+        prompt: `Dossier de seance ${theme.label} : ${situation}. Pour ${context}, classe les trois documents dans les bons dossiers.`,
+        coursePoint: `Un dossier technique doit separer ce qui releve de la fonction, du composant ou du hors sujet.`,
+        folders,
+        items: [
+          { label: first[0], target: first[1] },
+          { label: second[0], target: second[1] },
+          { label: first[2], target: "hors sujet" }
+        ],
+        successFeedback: "Classement valide.",
+        failureFeedback: "Au moins un document n'est pas dans le bon dossier.",
+        en: {
+          prompt: `Lesson file ${enValue(theme.label)}: ${enValue(situation)}. For ${enValue(context)}, sort the three documents into the right folders.`
+        }
+      });
+    }
+
+    if (type === "schemaSpot") {
+      const diag = diagnostic(theme, level, index);
+      return withEnglish({
+        ...challenge,
+        interaction: "hotspot",
+        title: `${theme.label} : erreur de schema`,
+        prompt: `Atelier : ${situation}. ${diag[0]} Quelle piste explique le mieux le probleme ?`,
+        coursePoint: `On ne corrige pas au hasard : on part du symptome, puis on choisit une piste a verifier. Ici : ${diag[1]}.`,
+        sceneTitle: "pistes du systeme",
+        hotspots: rotatedChoices([
+          choice(diag[1], true, "C'est la piste a verifier."),
+          choice(diag[2], false, "Cette piste n'explique pas le symptome."),
+          choice(diag[3], false, "Cette piste ferait chercher au mauvais endroit."),
+          choice("decor de la salle", false, "Le decor n'est pas une fonction technique.")
+        ], index)
+      });
+    }
+
+    if (type === "chainRepair") {
+      const steps = pick(theme.sequences[level], index);
+      const pool = rotatedChoices(steps.map((label, order) => ({ label, order })), index + 2);
+      return withEnglish({
+        ...challenge,
+        interaction: "chain",
+        title: `${theme.label} : chaine a reparer`,
+        prompt: `Pour ${context}, pendant ${situation}, remets cette chaine dans le bon ordre.`,
+        coursePoint: `Ordre attendu : ${sequenceText(steps)}. On lit la chaine de ce qui entre vers ce qui sort.`,
+        steps,
+        pool,
+        successFeedback: "La chaine est dans le bon ordre.",
+        failureFeedback: "Il y a encore une inversion dans la chaine."
+      });
+    }
+
+    if (type === "debugBlocks") {
+      const facts = theme.truths[level];
+      const wrongFact = facts.find((fact) => fact[1] === false) || facts[0];
+      const rightFact = facts.find((fact) => fact[1] === true) || facts[1];
+      const extra = pick(facts, index + 2);
+      return withEnglish({
+        ...challenge,
+        interaction: "debugBlocks",
+        title: `${theme.label} : debug`,
+        prompt: `Atelier : ${situation}. Une affirmation est fausse dans le raisonnement. Laquelle faut-il corriger pour ${context} ?`,
+        coursePoint: `Debugger, c'est reperer l'erreur precise avant d'ajouter ou de supprimer des blocs.`,
+        choices: rotatedChoices(uniqueChoices([
+          choice(wrongFact[0], true, "Oui, c'est cette affirmation qu'il faut corriger."),
+          choice(rightFact[0], false, "Cette affirmation est correcte."),
+          choice(extra[0], false, extra[1] === false ? "Elle peut etre discutee, mais ce n'est pas l'erreur demandee." : "Cette affirmation peut rester."),
+          choice("Tester avant de conclure.", false, "Tester est une bonne habitude, ce n'est pas l'erreur.")
+        ]), index)
+      });
+    }
+
+    if (type === "variableTrace") {
+      const start = (index % 4) + 2;
+      const add = (level === "5e" ? 2 : level === "4e" ? 3 : 4);
+      const multiply = level === "5e" ? 2 : 3;
+      const afterAdd = start + add;
+      const answer = afterAdd * multiply - 1;
+      const values = [answer, answer + 1, afterAdd, start + multiply, answer - 2, answer + 3];
+      const uniqueValues = [...new Set(values)].slice(0, 4);
+      return withEnglish({
+        ...challenge,
+        interaction: "variableTrace",
+        title: `${theme.label} : variable`,
+        prompt: `Pour ${context}, pendant ${situation}, calcule la valeur finale de "scoreTest".`,
+        coursePoint: `On part de ${start}, puis on applique chaque operation dans l'ordre : + ${add}, x ${multiply}, - 1.`,
+        trace: {
+          variable: "scoreTest",
+          start,
+          operations: [`+ ${add}`, `x ${multiply}`, "- 1"]
+        },
+        choices: rotatedChoices(uniqueValues.map((value) => choice(
+          String(value),
+          value === answer,
+          value === answer
+            ? "Oui, toutes les operations sont prises en compte."
+            : value === answer + 1
+              ? "Il manque la derniere operation."
+              : value === afterAdd
+                ? "La multiplication a ete oubliee."
+                : "Les operations ne sont pas appliquees dans le bon ordre."
+        )), index)
+      });
+    }
+
+    if (type === "conditionLoop") {
+      const options = level === "5e"
+        ? ["boucle", "condition", "evenement"]
+        : level === "4e"
+          ? ["condition", "variable", "message"]
+          : ["boucle avec condition d'arret", "liste", "affichage"];
+      return withEnglish({
+        ...challenge,
+        interaction: "choice",
+        title: `${theme.label} : condition ou boucle`,
+        prompt: `Dans ${theme.label}, pour ${context}, pendant ${situation}, l'action doit recommencer jusqu'a ce que le test soit bon. Quel bloc convient ?`,
+        coursePoint: `Si une action recommence tant qu'une condition n'est pas verifiee, on utilise une boucle controlee.`,
+        choices: rotatedChoices([
+          choice(options[0], true, "Bon choix : il permet de repeter jusqu'au bon resultat."),
+          choice(options[1], false, "Ce bloc peut aider, mais il ne repete pas l'action."),
+          choice(options[2], false, "Ce choix ne gere pas la repetition.")
+        ], index),
+        en: {
+          prompt: `In ${enValue(theme.label)}, for ${enValue(context)}, during ${enValue(situation)}, the action must repeat until the test is correct. Which block fits?`
+        }
+      });
+    }
+
+    if (type === "aiTraining") {
+      const goodOne = theme.id === "ai" ? "exemples varies" : "mesures fiables";
+      const goodTwo = theme.id === "ai" ? "jeu de test separe" : "criteres de test clairs";
+      return withEnglish({
+        ...challenge,
+        interaction: "multiSelect",
+        title: `${theme.label} : donnees d'entrainement`,
+        prompt: `Contexte : ${context}. Atelier : ${situation}. Que faut-il garder pour rendre l'essai plus fiable ?`,
+        coursePoint: `Un test fiable repose sur des exemples varies, des mesures correctes et des criteres de test.`,
+        successFeedback: "Le test devient plus fiable.",
+        failureFeedback: "Il manque un element fiable ou un element fragile a ete retenu.",
+        choices: rotatedChoices([
+          choice(goodOne, true, "A garder : cela rend le test plus solide."),
+          choice(goodTwo, true, "A garder : cela aide a verifier le resultat."),
+          choice("un seul exemple", false, "Un seul exemple ne suffit pas a valider."),
+          choice("resultat choisi au hasard", false, "Le hasard ne prouve pas le fonctionnement."),
+          choice("donnees non verifiees", false, "Des donnees non verifiees peuvent tromper.")
+        ], index)
+      });
+    }
+
+    if (type === "specFilter") {
+      return withEnglish({
+        ...challenge,
+        interaction: "multiSelect",
+        title: `${theme.label} : cahier des charges`,
+        prompt: `Cahier des charges : ${context}. Atelier : ${situation}. Coche les contraintes vraiment utiles.`,
+        coursePoint: `Une contrainte doit aider a choisir ou verifier une solution : securite, energie, cout, usage.`,
+        successFeedback: "Les contraintes utiles sont bien gardees.",
+        failureFeedback: "Il manque une contrainte utile ou un detail inutile a ete garde.",
+        choices: rotatedChoices([
+          choice("securite de l'utilisateur", true, "A garder : c'est une vraie contrainte."),
+          choice("consommation d'energie", true, "A garder : c'est une vraie contrainte."),
+          choice("couleur preferee du groupe", false, "Ce n'est pas une contrainte technique prioritaire."),
+          choice("nom du fichier", false, "Ce n'est pas un critere de performance."),
+          choice("cout maximum", true, "A garder : c'est une vraie contrainte.")
+        ], index)
+      });
+    }
+
+    if (type === "mapExplore") {
+      const target = mapTarget(theme);
+      return withEnglish({
+        ...challenge,
+        interaction: "mapHotspot",
+        title: `${theme.label} : carte a explorer`,
+        prompt: `Atelier : ${situation}. Sur le plan du labo, touche l'endroit ou commencer l'enquete : ${context}.`,
+        coursePoint: `On commence par la zone qui permet d'observer, mesurer ou tester le probleme.`,
+        sceneTitle: "plan du labo",
+        hotspots: rotatedChoices([
+          choice(target, true, "Bon point de depart."),
+          choice("armoire de rangement", false, "Utile plus tard, mais pas pour commencer."),
+          choice("coin affichage", false, "Ce coin sert surtout a presenter les resultats."),
+          choice("zone repos", false, "Ce n'est pas une zone de diagnostic.")
+        ], index)
+      });
+    }
+
+    if (type === "assembly") {
+      const parts = themeAssembly(theme);
+      return withEnglish({
+        ...challenge,
+        interaction: "multiSelect",
+        title: `${theme.label} : table de montage`,
+        prompt: `Atelier ${theme.label} : ${situation}. Sur la table de montage, garde seulement les composants utiles pour ${context}.`,
+        coursePoint: `Un bon montage repond au besoin. Les composants decoratifs ou hors sujet font perdre du temps.`,
+        successFeedback: "La table contient les composants utiles.",
+        failureFeedback: "Un composant utile manque ou un intrus est reste sur la table.",
+        choices: rotatedChoices([
+          choice(parts[0], true, "A garder."),
+          choice(parts[1], true, "A garder."),
+          choice(parts[2], true, "A garder."),
+          choice(parts[3], false, "Intrus pour ce besoin."),
+          choice(parts[4], false, "A ecarter.")
+        ], index),
+        en: {
+          prompt: `${enValue(theme.label)} workshop: ${enValue(situation)}. On the assembly table, keep only the useful components for ${enValue(context)}.`
+        }
+      });
+    }
+
+    if (type === "compare") {
+      const dec = decision(theme, level, index);
+      return withEnglish({
+        ...challenge,
+        interaction: "compare",
+        title: `${theme.label} : comparateur`,
+        prompt: `Besoin : ${context}. Situation : ${situation}. Choisis la solution la mieux justifiee.`,
+        coursePoint: `Le choix doit repondre au besoin et s'appuyer sur un critere clair. Ici : ${dec[1]}.`,
+        cards: rotatedChoices([
+          choice(dec[1], true, "Choix justifie."),
+          choice(dec[2], false, "Ce choix ne traite pas le besoin principal."),
+          choice(dec[3], false, "Ce choix manque de critere technique.")
+        ], index)
+      });
+    }
+
+    if (type === "miniInvestigation") {
+      const diag = diagnostic(theme, level, index);
+      return withEnglish({
+        ...challenge,
+        interaction: "choice",
+        title: `${theme.label} : mini-enquete`,
+        prompt: `Pour ${context}, pendant ${situation}, lis les indices et choisis la piste a verifier en premier.`,
+        coursePoint: `En diagnostic, on part des symptomes, puis on choisit une verification simple avant de modifier le systeme.`,
+        clues: [
+          `Probleme : ${diag[0]}`,
+          `Objet : ${context}`,
+          `En classe : ${situation}`
+        ],
+        choices: rotatedChoices([
+          choice(diag[1], true, "C'est la piste a verifier d'abord."),
+          choice(diag[2], false, "Cette piste ne suit pas les indices."),
+          choice(diag[3], false, "Cette piste ferait corriger au hasard.")
+        ], index)
+      });
+    }
+
+    return null;
+  }
+
   function sequenceText(steps) {
     return steps.join(" -> ");
   }
@@ -339,7 +1129,6 @@
   function baseChallenge(theme, level, type, index) {
     const levelData = LEVELS[level];
     const reward = { ...levelData.reward };
-    if (index % 5 !== 0) delete reward.badges;
     return {
       id: `${theme.id}-${level}-${type}-${index}`,
       theme: theme.id,
@@ -359,18 +1148,20 @@
     const context = pick(theme.contexts[level], index);
     const situation = pick(SITUATION_DETAILS, Math.floor(index / TYPES.length));
     const challenge = baseChallenge(theme, level, type, index);
+    const miniChallenge = buildMiniChallenge(theme, level, type, index, context, situation, challenge);
+    if (miniChallenge) return miniChallenge;
 
     if (type === "single") {
       const concept = pick(theme.concepts[level], index);
       return {
         ...challenge,
         title: `${theme.label} : role d'un element`,
-        prompt: `Dans ${context}, lors de ${situation}, quel est le role de "${concept[0]}" ?`,
-        coursePoint: `"${concept[0]}" correspond ici a ${concept[1]}. Dans un systeme technique, il faut relier chaque element a sa fonction avant de choisir une solution.`,
+        prompt: `Dans ${context}, pendant ${situation}, a quoi sert "${concept[0]}" ?`,
+        coursePoint: `Ici, "${concept[0]}" correspond a ${concept[1]}. En techno, on relie toujours un element a sa fonction.`,
         choices: rotatedChoices([
-          choice(concept[1], true, "C'est le role attendu dans ce systeme."),
-          choice(concept[2], false, "Cette reponse melange avec une autre fonction technique."),
-          choice(concept[3], false, "Ce choix ne correspond pas au role demande.")
+          choice(concept[1], true, "Oui, c'est son role ici."),
+          choice(concept[2], false, "Non, cela correspond a une autre fonction."),
+          choice(concept[3], false, "Non, ce n'est pas le role demande.")
         ], index)
       };
     }
@@ -380,12 +1171,12 @@
       return {
         ...challenge,
         title: `${theme.label} : vrai ou faux`,
-        prompt: `Lors de ${situation}, on affirme : ${fact[0]}`,
+        prompt: `Pendant ${situation}, vrai ou faux ? ${fact[0]}`,
         coursePoint: fact[1]
-          ? `Cette affirmation est vraie. Elle fait partie des reperes a connaitre pour raisonner sur ${theme.label.toLowerCase()} en ${level}.`
-          : `Cette affirmation est fausse. En technologie, on verifie toujours le role reel d'un element ou d'une donnee avant de conclure.`,
+          ? `C'est vrai : c'est un repere important pour le theme ${theme.label.toLowerCase()}.`
+          : `C'est faux : on verifie le role reel d'un element, d'une donnee ou d'une fonction avant de conclure.`,
         choices: rotatedChoices([
-          choice("Vrai", fact[1] === true, fact[1] ? "Exact." : "Pas cette fois."),
+          choice("Vrai", fact[1] === true, fact[1] ? "Exact." : "Non, l'affirmation est fausse."),
           choice("Faux", fact[1] === false, fact[1] ? "La phrase etait vraie." : "Exact, la phrase etait fausse.")
         ], index)
       };
@@ -397,14 +1188,14 @@
       return {
         ...challenge,
         title: `${theme.label} : ordre logique`,
-        prompt: `Quel ordre convient le mieux pour ${context}, lors de ${situation} ?`,
-        coursePoint: `L'ordre attendu est ${sequenceText(steps)}. Respecter l'ordre des fonctions evite de confondre cause, traitement et action.`,
+        prompt: `Pour ${theme.label}, avec ${context}, pendant ${situation}, remets les etapes dans l'ordre.`,
+        coursePoint: `Ordre attendu : ${sequenceText(steps)}. L'ordre aide a comprendre ce qui declenche, transforme ou produit l'action.`,
         steps,
         pool,
         choices: rotatedChoices([
-          choice(sequenceText(steps), true, "L'ordre respecte la logique du systeme."),
-          choice(wrongSequences(steps)[0], false, "Deux etapes importantes sont inversees."),
-          choice(wrongSequences(steps)[1], false, "Le traitement arrive trop tot ou trop tard.")
+          choice(sequenceText(steps), true, "L'ordre est correct."),
+          choice(wrongSequences(steps)[0], false, "Deux etapes sont inversees."),
+          choice(wrongSequences(steps)[1], false, "Une etape arrive trop tot ou trop tard.")
         ], index)
       };
     }
@@ -414,8 +1205,8 @@
       return {
         ...challenge,
         title: `${theme.label} : classement rapide`,
-        prompt: `Dans ${context}, lors de ${situation}, "${item[0]}" appartient surtout a quelle categorie ?`,
-        coursePoint: `"${item[0]}" se classe surtout dans "${item[1]}". Classer correctement aide a comprendre la fonction dans le systeme.`,
+        prompt: `Dans ${context}, pendant ${situation}, "${item[0]}" correspond surtout a quelle categorie ?`,
+        coursePoint: `La bonne categorie est "${item[1]}". Le classement sert a identifier rapidement la fonction dans le systeme.`,
         item: item[0],
         categories: rotatedChoices([
           choice(item[1], true, "Classement correct."),
@@ -435,10 +1226,10 @@
       return {
         ...challenge,
         title: `${theme.label} : diagnostic`,
-        prompt: `${diag[0]} Lors de ${situation}, que faut-il verifier en priorite ?`,
-        coursePoint: `Dans un diagnostic, on cherche d'abord la cause la plus probable. Ici, la bonne piste est : ${diag[1]}.`,
+        prompt: `${diag[0]} Pendant ${situation}, quelle verification faire en premier ?`,
+        coursePoint: `On commence par la cause la plus probable, pas par une modification au hasard. Ici : ${diag[1]}.`,
         choices: rotatedChoices([
-          choice(diag[1], true, "Diagnostic pertinent."),
+          choice(diag[1], true, "Bonne premiere verification."),
           choice(diag[2], false, "Cette piste n'agit pas sur la cause probable."),
           choice(diag[3], false, "Cette action risque de masquer le probleme.")
         ], index)
@@ -449,11 +1240,11 @@
     return {
       ...challenge,
       title: `${theme.label} : choix d'action`,
-      prompt: `${decision[0]}, lors de ${situation}, quelle decision est la plus solide ?`,
-      coursePoint: `Une decision technique solide repond au besoin avec un critere clair. Ici, le meilleur choix est : ${decision[1]}.`,
+      prompt: `${decision[0]}. Situation : ${situation}. Quelle decision prendre ?`,
+      coursePoint: `Un bon choix repond au besoin et s'appuie sur un critere technique. Ici : ${decision[1]}.`,
       choices: rotatedChoices([
-        choice(decision[1], true, "Decision justifiee par le besoin."),
-        choice(decision[2], false, "Ce choix ne repond pas assez au probleme."),
+        choice(decision[1], true, "Decision justifiee."),
+        choice(decision[2], false, "Ce choix ne repond pas assez au besoin."),
         choice(decision[3], false, "Ce choix manque de critere technique.")
       ], index)
     };

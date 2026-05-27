@@ -1,6 +1,7 @@
 (function () {
   const STORAGE_KEY = "techno-cycle-4-manager.v1";
   const LANG_STORAGE_KEY = "techno-cycle-4-manager.lang";
+  const TUTORIAL_COLLAPSED_KEY = "techno-cycle-4-manager.tutorialCollapsed";
   const I18N = window.TechnoI18n;
 
   const icon = (name) => `./assets/idle/icons/${name}.png`;
@@ -30,12 +31,21 @@
   };
 
   let currentLang = loadLanguage();
+  let tutorialCollapsed = loadTutorialCollapsed();
 
   function loadLanguage() {
     try {
       return I18N?.normalizeLang(localStorage.getItem(LANG_STORAGE_KEY)) || "fr";
     } catch {
       return "fr";
+    }
+  }
+
+  function loadTutorialCollapsed() {
+    try {
+      return localStorage.getItem(TUTORIAL_COLLAPSED_KEY) === "1";
+    } catch {
+      return false;
     }
   }
 
@@ -95,7 +105,7 @@
       baseCost: { material: 85, resources: 60 },
       maxLevel: 5,
       production: { mastery: 0.42, material: 0.32 },
-      effect: "+pieces, +savoir-faire",
+      effect: "+composants, +savoir-faire",
       unlockMastery: 10
     },
     {
@@ -106,7 +116,7 @@
       baseCost: { material: 160, resources: 130 },
       maxLevel: 5,
       production: { resources: 0.55, mastery: 0.5 },
-      effect: "+fiches, +savoir-faire",
+      effect: "+documents, +savoir-faire",
       unlockMastery: 30
     },
     {
@@ -159,7 +169,7 @@
       id: "labManager",
       name: "Regisseur atelier",
       icon: "material",
-      description: "Prepare les kits, verifie les pieces et limite les pertes de temps.",
+      description: "Prepare les kits, verifie les composants et limite les pertes de temps.",
       baseCost: { resources: 140, material: 120 },
       production: { material: 1.1, motivation: 0.04, disorder: -0.04 },
       onHire: { teachers: 1 },
@@ -168,10 +178,12 @@
   ];
 
   const ACTIONS = [
-    { id: "observe", name: "Enquete d'usage", icon: "learners", text: "1 eleve requis, +5 fiches", requires: { learners: 1 }, effect: { resources: 5, motivation: 0.5 } },
-    { id: "inventory", name: "Audit des kits", icon: "material", text: "1 eleve requis, +9 pieces", requires: { learners: 1 }, effect: { material: 9, motivation: -0.5 } },
-    { id: "prepare", name: "Fiche atelier", icon: "resources", text: "1 eleve requis, +8 fiches", requires: { learners: 1 }, effect: { resources: 8, motivation: -0.5 } },
-    { id: "challenge", name: "Situation-probleme", icon: "cart", text: "4 eleves requis, ouvre un defi", requires: { learners: 4 }, challenge: true }
+    { id: "observe", name: "Enquete d'usage", icon: "learners", text: "Mini-defi : 5 documents a gagner", requires: { learners: 1 }, reward: { resources: 5, motivation: 0.5 }, penalty: { disorder: 1, motivation: -1 } },
+    { id: "inventory", name: "Audit des kits", icon: "material", text: "Mini-defi : 9 composants a gagner", requires: { learners: 1 }, reward: { material: 9, motivation: -0.5 }, penalty: { disorder: 1.5, motivation: -1 } },
+    { id: "prepare", name: "Document d'atelier", icon: "resources", text: "Mini-defi : 8 documents a gagner", requires: { learners: 1 }, reward: { resources: 8, motivation: -0.5 }, penalty: { disorder: 1, motivation: -1 } },
+    { id: "calm", name: "Retour au calme", icon: "teachers", text: "Mini-defi : -8 agitation", requires: { learners: 2 }, reward: { disorder: -8, motivation: 1 }, penalty: { disorder: 2, motivation: -1 } },
+    { id: "playLab", name: "Atelier ludique", icon: "idea", text: "Mini-jeu couteux : +20 savoir-faire, +10 agitation", requires: { learners: 4 }, cost: { resources: 20, material: 8 }, reward: { mastery: 20, motivation: 6, disorder: 10 }, penalty: { disorder: 16, motivation: -4 }, preferredTypes: ["wordCatch", "definitionLink", "compare"] },
+    { id: "challenge", name: "Situation-probleme", icon: "cart", text: "Defi complet : 1 jeton savoir", requires: { learners: 4 }, challenge: true }
   ];
 
   const SIDE_TABS = [
@@ -185,21 +197,99 @@
   const KNOWLEDGE = [
     { id: "project", name: "Demarche de projet", icon: "desk", cost: 1, description: "+20 % savoir-faire. Les essais deviennent comparables.", multiplier: { mastery: 1.2 } },
     { id: "maintenance", name: "Reparabilite", icon: "tools", cost: 1, description: "-30 % agitation. Les pannes deviennent des enquetes.", multiplier: { disorder: 0.7 } },
-    { id: "network", name: "Donnees et reseaux", icon: "router", cost: 2, description: "+25 % fiches produites par les ilots numeriques.", multiplier: { resources: 1.25 } },
-    { id: "energy", name: "Chaine d'energie", icon: "solar", cost: 2, description: "+25 % pieces exploitables grace aux bons choix techniques.", multiplier: { material: 1.25 } },
+    { id: "network", name: "Donnees et reseaux", icon: "router", cost: 2, description: "+25 % documents produits par les ilots numeriques.", multiplier: { resources: 1.25 } },
+    { id: "energy", name: "Chaine d'energie", icon: "solar", cost: 2, description: "+25 % composants exploitables grace aux bons choix techniques.", multiplier: { material: 1.25 } },
     { id: "eco", name: "Impact environnemental", icon: "eco", cost: 3, description: "+15 motivation, +10 savoir-faire.", instant: { motivation: 15, mastery: 10 } }
   ];
 
-  const MISSIONS = [
-    { id: "firstRecruit", text: "Former la premiere equipe", check: (s) => s.recruits.learners.count >= 1 },
-    { id: "firstLearners", text: "Installer 4 eleves en atelier", check: (s) => s.resources.learners >= 4 },
-    { id: "sensorBench", text: "Activer la station capteurs", check: (s) => s.spaces.sensorBench.owned },
-    { id: "firstIncident", text: "Valider une situation-probleme", check: (s) => s.stats.challengesSolved >= 1 },
-    { id: "knowledge", text: "Valider 2 protocoles", check: (s) => Object.values(s.knowledge).filter(Boolean).length >= 2 }
+  const CAMPAIGN_STAGES = [
+    {
+      id: "launch",
+      title: "Installer le labo",
+      summary: "Faire passer la salle vide a une premiere equipe autonome.",
+      reward: { resources: 10, motivation: 3 },
+      objectives: [
+        { id: "firstLearner", text: "Accueillir le premier eleve", target: 1, value: (s) => s.resources.learners },
+        { id: "firstDocuments", text: "Preparer des documents de travail", target: 20, scale: true, value: (s) => s.resources.resources },
+        { id: "firstTeam", text: "Former une equipe de 4 eleves", target: 4, value: (s) => s.resources.learners }
+      ]
+    },
+    {
+      id: "activeClass",
+      title: "Classe en activite",
+      summary: "Entrer dans le rythme : questions, protocole et premiere station.",
+      reward: { material: 12, mastery: 6 },
+      objectives: [
+        { id: "firstChallenge", text: "Reussir des situations-problemes", target: 2, scale: true, value: (s) => s.stats.challengesSolved },
+        { id: "projectProtocol", text: "Valider la demarche de projet", target: 1, value: (s) => s.knowledge.project ? 1 : 0 },
+        { id: "sensorStation", text: "Activer la station capteurs", target: 1, value: (s) => s.spaces.sensorBench?.owned ? 1 : 0 },
+        { id: "componentStock", text: "Constituer un stock de composants", target: 25, scale: true, value: (s) => s.resources.material }
+      ]
+    },
+    {
+      id: "structuredWorkshop",
+      title: "Atelier structure",
+      summary: "Organiser la classe pour que le labo progresse meme sans clic permanent.",
+      reward: { resources: 35, badges: 1 },
+      objectives: [
+        { id: "twelveLearners", text: "Atteindre 12 eleves actifs", target: 12, value: (s) => s.resources.learners },
+        { id: "twoStations", text: "Activer 2 stations techniques", target: 2, value: (s) => ownedStationCount(s) },
+        { id: "twoProtocols", text: "Valider 2 protocoles", target: 2, value: (s) => protocolCount(s) },
+        { id: "documentReserve", text: "Conserver une reserve de documents", target: 120, scale: true, value: (s) => s.resources.resources }
+      ]
+    },
+    {
+      id: "connectedPrototype",
+      title: "Prototype connecte",
+      summary: "Croiser energie, donnees et essais pour construire une vraie demarche technique.",
+      reward: { material: 40, mastery: 18 },
+      objectives: [
+        { id: "energyBenchReady", text: "Activer le banc energie", target: 1, value: (s) => s.spaces.energyBench?.owned ? 1 : 0 },
+        { id: "networkBayReady", text: "Activer le poste donnees", target: 1, value: (s) => s.spaces.networkBay?.owned ? 1 : 0 },
+        { id: "tenChallenges", text: "Reussir des defis varies", target: 10, scale: true, value: (s) => s.stats.challengesSolved },
+        { id: "secondRoom", text: "Ouvrir une deuxieme salle", target: 2, value: () => classroomCount() }
+      ]
+    },
+    {
+      id: "autonomousFablab",
+      title: "FabLab autonome",
+      summary: "Passer d'une classe organisee a un atelier capable de prototyper.",
+      reward: { resources: 60, motivation: 12, badges: 1 },
+      objectives: [
+        { id: "fablabReady", text: "Activer la zone prototype", target: 1, value: (s) => s.spaces.fablab?.owned ? 1 : 0 },
+        { id: "fullRoom", text: "Remplir une salle complete", target: 24, value: (s) => s.resources.learners },
+        { id: "fourProtocols", text: "Valider 4 protocoles", target: 4, value: (s) => protocolCount(s) },
+        { id: "masteryReserve", text: "Cumuler du savoir-faire", target: 100, scale: true, value: (s) => s.resources.mastery },
+        { id: "twentyChallenges", text: "Reussir une serie de defis", target: 20, scale: true, value: (s) => s.stats.challengesSolved }
+      ]
+    },
+    {
+      id: "finalExpo",
+      title: "Expo Techno finale",
+      summary: "Preparer une exposition de fin de cycle avec un labo complet et stable.",
+      reward: { motivation: 20, mastery: 35 },
+      objectives: [
+        { id: "allStations", text: "Activer toutes les stations", target: 4, value: (s) => ownedStationCount(s) },
+        { id: "allProtocols", text: "Valider tous les protocoles", target: 5, value: (s) => protocolCount(s) },
+        { id: "largeCohort", text: "Former 36 eleves au labo", target: 36, value: (s) => s.resources.learners },
+        { id: "finalChallengeSet", text: "Reussir le parcours de defis", target: 35, scale: true, value: (s) => s.stats.challengesSolved },
+        { id: "motivatedClass", text: "Garder une classe motivee", target: 70, value: (s) => s.resources.motivation }
+      ]
+    }
   ];
+
+  const GUIDE_TARGETS = {
+    recruit: "recruit",
+    action: "action",
+    space: "space",
+    knowledge: "knowledge"
+  };
 
   const CLASSROOM_SEAT_COUNT = 24;
   const MAX_CLASSROOMS = 6;
+  const TICK_INTERVAL_MS = 500;
+  const ACTION_COOLDOWN_MS = 10000;
+  const LIVE_RESOURCE_KEYS = new Set(["material", "resources", "mastery"]);
   const EQUIPMENT_CYCLE = ["computer", "tablet", "tools", "sensor", "energy", "computer"];
 
   function defaultState(playerName = t("defaultPlayer"), level = "5e") {
@@ -219,8 +309,11 @@
       classrooms: { unlocked: 1, active: 0 },
       students: [],
       knowledge: {},
+      progression: { claimedStages: {}, finalLogged: false },
       stats: { challengesSolved: 0, challengeAttempts: 0, totalMastery: 0, recentChallenges: [] },
+      gameOver: null,
       lastChallengeAt: Date.now(),
+      actionCooldownUntil: 0,
       log: [t("logWelcome", { name: cleanName, level: cleanLevel })],
       createdAt: Date.now(),
       lastTickAt: Date.now()
@@ -230,6 +323,7 @@
   let state = loadState();
   let rates = state ? computeRates() : emptyRates();
   let toastTimer = null;
+  let pendingProgressToast = null;
   let activeSideTab = "teams";
   let interactionInProgress = false;
   let resetHandledAt = 0;
@@ -254,7 +348,13 @@
         classrooms: { ...base.classrooms, ...saved.classrooms },
         lang: currentLang,
         knowledge: { ...base.knowledge, ...saved.knowledge },
+        progression: {
+          ...base.progression,
+          ...saved.progression,
+          claimedStages: { ...base.progression.claimedStages, ...(saved.progression?.claimedStages || {}) }
+        },
         stats: { ...base.stats, ...saved.stats },
+        gameOver: saved.gameOver || null,
         students: sanitizeStudents(saved.students),
         log: Array.isArray(saved.log) ? saved.log : base.log
       });
@@ -324,7 +424,7 @@
   }
 
   function computeRates() {
-    if (!state) return emptyRates();
+    if (!state || state.gameOver) return emptyRates();
     const next = emptyRates();
     SPACES.forEach((space) => {
       const owned = state.spaces[space.id];
@@ -359,6 +459,35 @@
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
     return `${Math.floor(value)}`;
+  }
+
+  function formatLiveValue(key, value) {
+    if (!LIVE_RESOURCE_KEYS.has(key)) return format(value);
+    if (value > 0 && value < 1) return value.toFixed(2);
+    if (value > 0 && value < 10) return value.toFixed(1);
+    return format(value);
+  }
+
+  function formatRateValue(rate) {
+    const absolute = Math.abs(rate);
+    if (absolute === 0) return "0";
+    if (absolute < 0.1) return absolute.toFixed(2);
+    if (absolute < 10) return absolute.toFixed(1);
+    return format(absolute);
+  }
+
+  function formatRate(rate) {
+    const sign = rate >= 0 ? "+" : "-";
+    return t("ratePerSecond", { value: `${sign}${formatRateValue(rate)}` });
+  }
+
+  function actionCooldownRemaining(now = Date.now()) {
+    return Math.max(0, (state?.actionCooldownUntil || 0) - now);
+  }
+
+  function startActionCooldown() {
+    if (!state) return;
+    state.actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
   }
 
   function escapeHtml(value) {
@@ -403,6 +532,31 @@
     rates = computeRates();
   }
 
+  function triggerGameOver() {
+    if (!state || state.gameOver) return true;
+    state.resources.disorder = 100;
+    state.gameOver = {
+      at: Date.now(),
+      level: state.level,
+      learners: learnerTotal(),
+      challengesSolved: state.stats.challengesSolved,
+      badges: state.badges
+    };
+    rates = emptyRates();
+    log(t("logGameOver"));
+    document.querySelectorAll(".modal-backdrop").forEach((modal) => modal.remove());
+    saveState();
+    render({ preserveScroll: true });
+    return true;
+  }
+
+  function checkGameOver() {
+    if (!state) return false;
+    if (state.gameOver) return true;
+    if (state.resources.disorder >= 100) return triggerGameOver();
+    return false;
+  }
+
   function classroomCount() {
     return clamp(Math.floor(state?.classrooms?.unlocked || 1), 1, MAX_CLASSROOMS);
   }
@@ -425,6 +579,92 @@
 
   function allOpenRoomsFull() {
     return learnerTotal() >= totalSeatCapacity();
+  }
+
+  function protocolCount(target = state) {
+    return Object.values(target?.knowledge || {}).filter(Boolean).length;
+  }
+
+  function ownedStationCount(target = state) {
+    return SPACES.filter((space) => space.id !== "classroom" && target?.spaces?.[space.id]?.owned).length;
+  }
+
+  function campaignScale() {
+    return { "5e": 1, "4e": 1.25, "3e": 1.5 }[state?.level] || 1;
+  }
+
+  function campaignTarget(objective) {
+    const base = typeof objective.target === "function" ? objective.target(state) : objective.target;
+    return Math.max(1, Math.ceil((objective.scale ? campaignScale() : 1) * base));
+  }
+
+  function objectiveStatus(objective) {
+    const target = campaignTarget(objective);
+    const raw = Number(objective.value?.(state) || 0);
+    const current = Math.max(0, Math.floor(raw));
+    return {
+      ...objective,
+      target,
+      current,
+      done: current >= target,
+      text: trById("campaignObjectives", objective.id, "text", objective.text)
+    };
+  }
+
+  function campaignStageStatus(stage, index) {
+    const objectives = stage.objectives.map(objectiveStatus);
+    const completed = objectives.filter((objective) => objective.done).length;
+    return {
+      ...stage,
+      index,
+      title: trById("campaignStages", stage.id, "title", stage.title),
+      summary: trById("campaignStages", stage.id, "summary", stage.summary),
+      objectives,
+      completed,
+      total: objectives.length,
+      done: completed === objectives.length,
+      percent: objectives.length ? (completed / objectives.length) * 100 : 0
+    };
+  }
+
+  function campaignStatuses() {
+    return CAMPAIGN_STAGES.map(campaignStageStatus);
+  }
+
+  function currentCampaignStatus() {
+    const statuses = campaignStatuses();
+    return statuses.find((stage) => !stage.done) || statuses[statuses.length - 1];
+  }
+
+  function campaignComplete() {
+    return campaignStatuses().every((stage) => stage.done);
+  }
+
+  function ensureProgression() {
+    if (!state.progression) state.progression = { claimedStages: {}, finalLogged: false };
+    if (!state.progression.claimedStages) state.progression.claimedStages = {};
+    return state.progression;
+  }
+
+  function syncProgression() {
+    if (!state || state.gameOver) return;
+    const progression = ensureProgression();
+    let changed = false;
+    campaignStatuses().forEach((stage) => {
+      if (!stage.done || progression.claimedStages[stage.id]) return;
+      progression.claimedStages[stage.id] = true;
+      changed = true;
+      if (stage.reward) apply(stage.reward);
+      log(t("logStageComplete", { title: stage.title, reward: effectText(stage.reward) }));
+      pendingProgressToast = t("stageRewardToast", { title: stage.title });
+    });
+    if (campaignComplete() && !progression.finalLogged) {
+      progression.finalLogged = true;
+      changed = true;
+      log(t("logCampaignComplete"));
+      pendingProgressToast = t("campaignCompleteToast");
+    }
+    if (changed) saveState();
   }
 
   function classroomCost() {
@@ -468,11 +708,124 @@
       const display = Math.abs(value) < 1 ? Math.abs(value).toFixed(1) : format(Math.abs(value));
       return `${sign}${display} ${resourceName(key, Math.abs(value))}`;
     });
-    return parts.length ? parts.join(" - ") : t("noEffect");
+    return parts.length ? parts.join(" ; ") : t("noEffect");
   }
 
   function productionText(production) {
     return Object.entries(production).map(([key, value]) => `${value > 0 ? "+" : ""}${value}/s ${resourceName(key, value)}`).join(" - ");
+  }
+
+  function progressText(current, target) {
+    if (!Number.isFinite(target) || target <= 0) return "";
+    return `${format(Math.min(current, target))}/${format(target)}`;
+  }
+
+  function guideStep() {
+    if (!state) return null;
+    const learners = learnerTotal();
+    const learnerRecruit = RECRUITS.find((item) => item.id === "learners");
+    const nextLearnerCost = learnerRecruit ? recruitCost(learnerRecruit) : {};
+    if (learners < 1) {
+      return {
+        id: "firstLearner",
+        tab: "teams",
+        kind: GUIDE_TARGETS.recruit,
+        target: "learners",
+        title: t("guide.firstTitle"),
+        text: t("guide.firstText"),
+        goal: t("guide.firstGoal"),
+        progress: { current: learners, target: 1 }
+      };
+    }
+    if (learners < 4 && learnerRecruit && canPay(nextLearnerCost)) {
+      return {
+        id: "recruitFour",
+        tab: "teams",
+        kind: GUIDE_TARGETS.recruit,
+        target: "learners",
+        title: t("guide.recruitTitle"),
+        text: t("guide.recruitText"),
+        goal: t("guide.recruitGoal"),
+        progress: { current: learners, target: 4 }
+      };
+    }
+    if (learners < 4) {
+      const needed = nextLearnerCost.resources || 10;
+      return {
+        id: "collectForLearners",
+        tab: "actions",
+        kind: GUIDE_TARGETS.action,
+        target: "observe",
+        title: t("guide.collectTitle"),
+        text: t("guide.collectText"),
+        goal: t("guide.collectGoal", { cost: costText(nextLearnerCost) }),
+        progress: { current: state.resources.resources, target: needed }
+      };
+    }
+    if (state.stats.challengesSolved < 1) {
+      return {
+        id: "firstChallenge",
+        tab: "actions",
+        kind: GUIDE_TARGETS.action,
+        target: "challenge",
+        title: t("guide.challengeTitle"),
+        text: t("guide.challengeText"),
+        goal: t("guide.challengeGoal"),
+        progress: { current: state.stats.challengesSolved, target: 1 }
+      };
+    }
+    if (state.badges >= 1 && !state.knowledge.project) {
+      return {
+        id: "firstProtocol",
+        tab: "protocols",
+        kind: GUIDE_TARGETS.knowledge,
+        target: "project",
+        title: t("guide.protocolTitle"),
+        text: t("guide.protocolText"),
+        goal: t("guide.protocolGoal"),
+        progress: { current: Object.values(state.knowledge).filter(Boolean).length, target: 1 }
+      };
+    }
+    const sensorBench = SPACES.find((item) => item.id === "sensorBench");
+    if (sensorBench && !state.spaces.sensorBench.owned) {
+      const cost = spaceCost(sensorBench);
+      if (canPay(cost)) {
+        return {
+          id: "firstStation",
+          tab: "stations",
+          kind: GUIDE_TARGETS.space,
+          target: "sensorBench",
+          title: t("guide.stationTitle"),
+          text: t("guide.stationText"),
+          goal: t("guide.stationGoal"),
+          progress: { current: 0, target: 1 }
+        };
+      }
+      const missingMaterial = (state.resources.material || 0) < (cost.material || 0);
+      const targetAction = missingMaterial ? "inventory" : "observe";
+      const targetAmount = missingMaterial ? cost.material : cost.resources;
+      const currentAmount = missingMaterial ? state.resources.material : state.resources.resources;
+      return {
+        id: "collectForStation",
+        tab: "actions",
+        kind: GUIDE_TARGETS.action,
+        target: targetAction,
+        title: t("guide.stationPrepTitle"),
+        text: t("guide.stationPrepText"),
+        goal: t("guide.stationPrepGoal", { cost: costText(cost) }),
+        progress: { current: currentAmount, target: targetAmount || 1 }
+      };
+    }
+    return {
+      id: "idleLoop",
+      tab: activeSideTab,
+      kind: null,
+      target: null,
+      title: t("guide.idleTitle"),
+      text: t("guide.idleText"),
+      goal: t("guide.idleGoal"),
+      progress: { current: state.stats.challengesSolved, target: Math.max(3, state.stats.challengesSolved + 1) }
+    };
   }
 
   function log(message) {
@@ -492,6 +845,7 @@
   }
 
   function buySpace(id) {
+    if (state?.gameOver) return;
     const space = SPACES.find((item) => item.id === id);
     if (!space) return;
     if (space.id === "classroom") {
@@ -520,6 +874,7 @@
   }
 
   function openClassroom() {
+    if (state?.gameOver) return;
     const current = state.spaces.classroom;
     if (classroomCount() >= MAX_CLASSROOMS) {
       showToast(t("allRoomsOpenToast"));
@@ -543,6 +898,7 @@
   }
 
   function hireRecruit(id) {
+    if (state?.gameOver) return;
     const recruit = RECRUITS.find((item) => item.id === id);
     if (!recruit) return;
     if (state.resources.mastery < recruit.unlockMastery) {
@@ -573,26 +929,39 @@
   }
 
   function useAction(id) {
+    if (state?.gameOver) return;
     const action = ACTIONS.find((item) => item.id === id);
     if (!action) return;
+    if (document.querySelector(".modal-backdrop")) return;
+    const cooldown = actionCooldownRemaining();
+    if (cooldown > 0) {
+      showToast(t("actionCooldownToast", { seconds: Math.ceil(cooldown / 1000) }));
+      return;
+    }
     if (!canMeet(action.requires)) {
       showToast(t("actionLearnersToast"));
       return;
     }
-    if (action.challenge) {
-      openChallenge(true);
-      return;
-    }
-    if (!pay(action.cost)) {
+    if (action.cost && !canPay(action.cost)) {
       showToast(t("actionStockToast"));
       return;
     }
-    apply(action.effect);
-    log(t("logAction", { name: tr("actions", action, "name") }));
-    render({ preserveScroll: true });
+    if (action.cost && !pay(action.cost)) return;
+    let opened = false;
+    if (action.challenge) {
+      opened = openChallenge(true, null, { actionCooldown: true });
+    } else {
+      opened = openChallenge(true, action);
+    }
+    if (!opened && action.cost) {
+      apply(action.cost);
+      saveState();
+    }
+    if (opened && action.cost) saveState();
   }
 
   function buyKnowledge(id) {
+    if (state?.gameOver) return;
     const item = KNOWLEDGE.find((entry) => entry.id === id);
     if (!item) return;
     if (state.knowledge[id]) {
@@ -620,36 +989,63 @@
     return t("challengeStats", { themes: stats.length, count: stats[0].byLevel[state.level] });
   }
 
-  function pickChallenge() {
+  function pickChallenge(options = {}) {
     const bank = challengeBank();
     if (!bank.length) return null;
     const typeIds = window.TechnoChallengeBank?.typeIds || [];
-    const expectedType = typeIds.length ? typeIds[state.stats.challengeAttempts % typeIds.length] : null;
+    const preferredTypes = Array.isArray(options.preferredTypes) ? options.preferredTypes.filter(Boolean) : [];
+    const cycle = preferredTypes.length ? preferredTypes : typeIds;
+    const expectedType = cycle.length ? cycle[state.stats.challengeAttempts % cycle.length] : null;
     const recent = new Set(state.stats.recentChallenges || []);
-    const typed = expectedType ? bank.filter((challenge) => challenge.type === expectedType) : bank;
+    let typed = expectedType ? bank.filter((challenge) => challenge.type === expectedType) : bank;
+    if (!typed.length && preferredTypes.length) typed = bank.filter((challenge) => preferredTypes.includes(challenge.type));
     const available = typed.filter((challenge) => !recent.has(challenge.id));
-    const source = available.length ? available : bank;
+    const source = available.length ? available : typed.length ? typed : bank;
     const seed = Math.floor(state.stats.challengeAttempts * 17 + state.resources.mastery + Date.now() / 1000);
     return source[Math.abs(seed) % source.length];
+  }
+
+  function actionChallenge(baseChallenge, action) {
+    const actionName = tr("actions", action, "name");
+    return {
+      ...baseChallenge,
+      id: `${baseChallenge.id}-action-${action.id}`,
+      sourceId: baseChallenge.sourceId || baseChallenge.id,
+      actionId: action.id,
+      actionLabel: actionName,
+      actionCooldown: true,
+      countsAsChallenge: false,
+      title: t("actionQuestionTitle", { name: actionName }),
+      prompt: t("actionQuestionPrompt", { name: actionName, prompt: baseChallenge.prompt }),
+      reward: action.reward || {},
+      penalty: action.penalty || { disorder: 1, motivation: -1 }
+    };
   }
 
   function resolveChallenge(modal, challenge, choice) {
     if (modal.dataset.answered === "true") return;
     modal.dataset.answered = "true";
     state.stats.challengeAttempts += 1;
-    state.stats.recentChallenges = [challenge.id, ...(state.stats.recentChallenges || [])].slice(0, 24);
+    const recentId = challenge.sourceId || challenge.id;
+    state.stats.recentChallenges = [recentId, ...(state.stats.recentChallenges || []).filter((id) => id !== recentId)].slice(0, 48);
     if (choice.correct) {
       apply(challenge.reward);
-      state.stats.challengesSolved += 1;
+      if (challenge.countsAsChallenge !== false) state.stats.challengesSolved += 1;
     } else {
       apply(challenge.penalty);
     }
-    log(`${choice.correct ? t("challengeSuccess") : t("challengeMiss")} : ${challenge.themeLabel} (${challenge.typeLabel}).`);
+    if (challenge.actionCooldown) startActionCooldown();
+    if (challenge.actionId) {
+      log(`${choice.correct ? t("actionSuccess") : t("actionMiss")} : ${challenge.actionLabel}.`);
+    } else {
+      log(`${choice.correct ? t("challengeSuccess") : t("challengeMiss")} : ${challenge.themeLabel} (${challenge.typeLabel}).`);
+    }
+    if (checkGameOver()) return;
     saveState();
 
     const card = modal.querySelector(".challenge-modal");
     card.classList.add(choice.correct ? "is-correct" : "is-wrong");
-    card.querySelectorAll("[data-choice], [data-seq-step], [data-seq-validate], [data-seq-reset]").forEach((button) => {
+    card.querySelectorAll("button").forEach((button) => {
       button.disabled = true;
     });
     card.insertAdjacentHTML("beforeend", `
@@ -668,10 +1064,251 @@
     showToast(choice.correct ? t("correctToast") : t("wrongToast"));
   }
 
+  function challengeInteraction(challenge) {
+    return challenge.interaction || challenge.type;
+  }
+
+  function renderChallengeClues(challenge) {
+    if (!Array.isArray(challenge.clues) || !challenge.clues.length) return "";
+    return `
+      <div class="mini-clues">
+        ${challenge.clues.map((clue) => `<span>${escapeHtml(clue)}</span>`).join("")}
+      </div>
+    `;
+  }
+
+  function renderMultiSelect(challenge) {
+    return `
+      <div class="mini-game mini-multiselect">
+        <p class="mini-instruction">${escapeHtml(t("multiSelectHint"))}</p>
+        <div class="mini-chip-grid">
+          ${challenge.choices.map((choice, index) => `<button type="button" data-multi-choice="${index}">${escapeHtml(choice.label)}</button>`).join("")}
+        </div>
+        <div class="sequence-actions">
+          <button class="paper-button buy" type="button" data-multi-validate disabled>${escapeHtml(t("validateAnswer"))}</button>
+          <button class="paper-button" type="button" data-multi-reset disabled>${escapeHtml(t("restart"))}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderMatching(challenge) {
+    const rights = challenge.pairs.map((pair, index) => ({ label: pair.right, index }));
+    const rotated = rights.slice(1).concat(rights.slice(0, 1));
+    return `
+      <div class="mini-game mini-matching">
+        <p class="mini-instruction" data-match-status>${escapeHtml(t("matchingHint"))}</p>
+        <div class="match-columns">
+          <div class="match-column">
+            ${challenge.pairs.map((pair, index) => `<button type="button" data-match-left="${index}">${escapeHtml(pair.left)}</button>`).join("")}
+          </div>
+          <div class="match-column">
+            ${rotated.map((pair) => `<button type="button" data-match-right="${pair.index}">${escapeHtml(pair.label)}</button>`).join("")}
+          </div>
+        </div>
+        <div class="sequence-actions">
+          <button class="paper-button buy" type="button" data-match-validate disabled>${escapeHtml(t("validateAnswer"))}</button>
+          <button class="paper-button" type="button" data-match-reset disabled>${escapeHtml(t("restart"))}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderFolderSort(challenge) {
+    return `
+      <div class="mini-game mini-folder-sort">
+        <p class="mini-instruction" data-folder-status>${escapeHtml(t("folderHint"))}</p>
+        <div class="folder-board">
+          <section class="folder-panel">
+            <h3>${escapeHtml(t("folderDocuments"))}</h3>
+            <div class="folder-items">
+              ${challenge.items.map((item, index) => `
+                <button type="button" data-sort-item="${index}">
+                  <strong>${escapeHtml(item.label)}</strong>
+                  <small data-sort-assignment="${index}">${escapeHtml(t("folderUnsorted"))}</small>
+                </button>
+              `).join("")}
+            </div>
+          </section>
+          <section class="folder-panel">
+            <h3>${escapeHtml(t("folderFolders"))}</h3>
+            <div class="folder-targets">
+              ${challenge.folders.map((folder, index) => `<button type="button" data-sort-folder="${index}">${escapeHtml(folder.label)}</button>`).join("")}
+            </div>
+          </section>
+        </div>
+        <div class="sequence-actions">
+          <button class="paper-button buy" type="button" data-sort-validate disabled>${escapeHtml(t("validateAnswer"))}</button>
+          <button class="paper-button" type="button" data-sort-reset disabled>${escapeHtml(t("restart"))}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderWordLetterBank(letters = []) {
+    return `
+      <div class="letter-bank" aria-label="${escapeHtml(t("wordPuzzleLetters"))}">
+        ${letters.map((letter) => `<button type="button" data-word-letter="${escapeHtml(letter)}">${escapeHtml(letter)}</button>`).join("")}
+      </div>
+    `;
+  }
+
+  function renderWordBank(words = []) {
+    if (!words.length) return "";
+    return `
+      <div class="word-bank">
+        <strong>${escapeHtml(t("wordPuzzleWordBank"))}</strong>
+        <div>
+          ${words.map((word) => `<span>${escapeHtml(word)}</span>`).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderWordGrid(challenge) {
+    const grid = challenge.gridSize || { rows: 1, cols: 1 };
+    const cells = (challenge.cells || []).map((cell, index) => ({ ...cell, slot: index }));
+    const cellMap = new Map(cells.map((cell) => [`${cell.row}:${cell.col}`, cell]));
+    const rows = [];
+    for (let row = 0; row < grid.rows; row += 1) {
+      for (let col = 0; col < grid.cols; col += 1) {
+        const cell = cellMap.get(`${row}:${col}`);
+        rows.push(cell
+          ? `<button class="crossword-cell" type="button" data-word-cell="${cell.slot}" data-word-answer="${escapeHtml(cell.answer)}">
+              ${cell.label ? `<span class="word-cell-index">${escapeHtml(cell.label)}</span>` : ""}
+              <span class="word-cell-letter" data-word-cell-letter="${cell.slot}"></span>
+            </button>`
+          : `<span class="crossword-empty" aria-hidden="true"></span>`);
+      }
+    }
+    return `
+      <div class="mini-game mini-word-puzzle">
+        <p class="mini-instruction">${escapeHtml(t("wordPuzzleHint"))}</p>
+        <div class="crossword-layout">
+          <div class="crossword-grid" style="--grid-cols:${grid.cols}; --grid-rows:${grid.rows}">
+            ${rows.join("")}
+          </div>
+          <ol class="crossword-clues">
+            ${(challenge.clues || []).map((clue) => `<li>${escapeHtml(clue)}</li>`).join("")}
+          </ol>
+        </div>
+        ${renderWordBank(challenge.wordBank)}
+        ${renderWordLetterBank(challenge.letters)}
+        <div class="sequence-actions">
+          <button class="paper-button buy" type="button" data-word-validate disabled>${escapeHtml(t("validateAnswer"))}</button>
+          <button class="paper-button" type="button" data-word-reset disabled>${escapeHtml(t("restart"))}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderArrowWords(challenge) {
+    let slot = 0;
+    return `
+      <div class="mini-game mini-word-puzzle mini-arrow-words">
+        <p class="mini-instruction">${escapeHtml(t("arrowWordHint"))}</p>
+        <div class="arrow-rows">
+          ${(challenge.rows || []).map((row) => `
+            <div class="arrow-row">
+              <div class="arrow-clue"><strong>${escapeHtml(String(row.index || ""))}</strong><span>${escapeHtml(row.clue)}</span></div>
+              <div class="arrow-slots">
+                ${String(row.answer || "").split("").map((letter) => {
+                  const current = slot;
+                  slot += 1;
+                  return `<button class="crossword-cell" type="button" data-word-cell="${current}" data-word-answer="${escapeHtml(letter)}">
+                    <span class="word-cell-letter" data-word-cell-letter="${current}"></span>
+                  </button>`;
+                }).join("")}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+        ${renderWordBank(challenge.wordBank)}
+        ${renderWordLetterBank(challenge.letters)}
+        <div class="sequence-actions">
+          <button class="paper-button buy" type="button" data-word-validate disabled>${escapeHtml(t("validateAnswer"))}</button>
+          <button class="paper-button" type="button" data-word-reset disabled>${escapeHtml(t("restart"))}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderHotspot(challenge, mode) {
+    const hotspots = challenge.hotspots || challenge.choices || [];
+    return `
+      <div class="mini-game mini-hotspot ${mode === "mapHotspot" ? "map-mode" : ""}">
+        <div class="hotspot-scene" aria-label="${escapeHtml(challenge.sceneTitle || challenge.title)}">
+          <strong>${escapeHtml(challenge.sceneTitle || challenge.title)}</strong>
+          ${hotspots.map((spot, index) => `<button type="button" data-choice="${index}" style="--spot-x:${18 + (index % 2) * 58}%; --spot-y:${28 + Math.floor(index / 2) * 40}%">${escapeHtml(spot.label)}</button>`).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderDebugBlocks(challenge) {
+    return `
+      <div class="mini-game mini-debug">
+        <div class="debug-stack">
+          ${challenge.choices.map((choice, index) => `<button type="button" data-choice="${index}"><span>${escapeHtml(choice.label)}</span></button>`).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderVariableTrace(challenge) {
+    const trace = challenge.trace || { variable: "x", start: 0, operations: [] };
+    return `
+      <div class="mini-game mini-variable">
+        <div class="variable-track">
+          <span>${escapeHtml(trace.variable)} = ${escapeHtml(String(trace.start))}</span>
+          ${(trace.operations || []).map((operation) => `<span>${escapeHtml(operation)}</span>`).join("")}
+          <span>?</span>
+        </div>
+        <div class="choice-list variableTrace">
+          ${challenge.choices.map((choice, index) => `<button type="button" data-choice="${index}">${escapeHtml(choice.label)}</button>`).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderCloze(challenge) {
+    const parts = challenge.parts || [];
+    const blanks = challenge.answers || [];
+    return `
+      <div class="mini-game mini-cloze">
+        <p class="cloze-line">
+          ${blanks.map((_, index) => `${escapeHtml(parts[index] || "")}<span data-cloze-slot="${index}">...</span>`).join("")}${escapeHtml(parts[blanks.length] || "")}
+        </p>
+        <div class="mini-chip-grid">
+          ${(challenge.wordBank || []).map((word, index) => `<button type="button" data-cloze-word="${index}">${escapeHtml(word)}</button>`).join("")}
+        </div>
+        <div class="sequence-actions">
+          <button class="paper-button buy" type="button" data-cloze-validate disabled>${escapeHtml(t("validateAnswer"))}</button>
+          <button class="paper-button" type="button" data-cloze-reset disabled>${escapeHtml(t("restart"))}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderCompare(challenge) {
+    const cards = challenge.cards || challenge.choices || [];
+    return `
+      <div class="mini-game mini-compare">
+        ${cards.map((card, index) => `
+          <button type="button" data-choice="${index}">
+            <strong>${escapeHtml(card.label)}</strong>
+            <span>${escapeHtml(card.correct ? t("bestCandidate") : t("candidate"))}</span>
+          </button>
+        `).join("")}
+      </div>
+    `;
+  }
+
   function renderChallengeInteraction(challenge) {
-    if (challenge.type === "sequence") {
+    const interaction = challengeInteraction(challenge);
+    if (interaction === "sequence" || interaction === "chain") {
       return `
-        <div class="sequence-builder">
+        <div class="sequence-builder ${interaction === "chain" ? "chain-builder" : ""}">
           <div class="sequence-slots" data-seq-output>${escapeHtml(t("selectSequence"))}</div>
           <div class="sequence-pool">
             ${challenge.pool.map((step, index) => `<button type="button" data-seq-step="${index}" data-order="${step.order}">${escapeHtml(step.label)}</button>`).join("")}
@@ -684,7 +1321,7 @@
       `;
     }
 
-    if (challenge.type === "classify") {
+    if (interaction === "classify") {
       return `
         <div class="classify-box">
           <div class="classify-item">${escapeHtml(challenge.item)}</div>
@@ -695,6 +1332,17 @@
       `;
     }
 
+    if (interaction === "multiSelect") return renderMultiSelect(challenge);
+    if (interaction === "matching") return renderMatching(challenge);
+    if (interaction === "folderSort") return renderFolderSort(challenge);
+    if (interaction === "wordGrid") return renderWordGrid(challenge);
+    if (interaction === "arrowWords") return renderArrowWords(challenge);
+    if (interaction === "hotspot" || interaction === "mapHotspot") return renderHotspot(challenge, interaction);
+    if (interaction === "debugBlocks") return renderDebugBlocks(challenge);
+    if (interaction === "variableTrace") return renderVariableTrace(challenge);
+    if (interaction === "cloze") return renderCloze(challenge);
+    if (interaction === "compare") return renderCompare(challenge);
+
     return `
       <div class="choice-list ${challenge.type}">
         ${challenge.choices.map((choice, index) => `<button type="button" data-choice="${index}">${escapeHtml(choice.label)}</button>`).join("")}
@@ -702,16 +1350,24 @@
     `;
   }
 
-  function bindChallengeEvents(modal, challenge) {
+  function choiceListFor(challenge) {
+    const interaction = challengeInteraction(challenge);
+    if (interaction === "classify") return challenge.categories;
+    if (interaction === "hotspot" || interaction === "mapHotspot") return challenge.hotspots || challenge.choices;
+    if (interaction === "compare") return challenge.cards || challenge.choices;
+    return challenge.choices;
+  }
+
+  function bindChoiceEvents(modal, challenge) {
     modal.querySelectorAll("[data-choice]").forEach((button) => {
       button.addEventListener("click", () => {
-        const list = challenge.type === "classify" ? challenge.categories : challenge.choices;
+        const list = choiceListFor(challenge);
         resolveChallenge(modal, challenge, list[Number(button.dataset.choice)]);
       });
     });
+  }
 
-    if (challenge.type !== "sequence") return;
-
+  function bindSequenceEvents(modal, challenge) {
     const selected = [];
     const output = modal.querySelector("[data-seq-output]");
     const validateButton = modal.querySelector("[data-seq-validate]");
@@ -745,26 +1401,314 @@
       const correct = selected.every((step, index) => step.order === index);
       resolveChallenge(modal, challenge, {
         correct,
-        feedback: correct ? I18N.translateChallengeText("L'ordre respecte la logique du systeme.", currentLang) : I18N.translateChallengeText("L'ordre contient au moins une inversion.", currentLang)
+        feedback: correct
+          ? (challenge.successFeedback || I18N.translateChallengeText("L'ordre respecte la logique du systeme.", currentLang))
+          : (challenge.failureFeedback || I18N.translateChallengeText("L'ordre contient au moins une inversion.", currentLang))
       });
     });
     updateOutput();
   }
 
-  function openChallenge(forced) {
-    if (!state) return;
-    if (document.querySelector(".modal-backdrop")) return;
+  function bindMultiSelectEvents(modal, challenge) {
+    const selected = new Set();
+    const validateButton = modal.querySelector("[data-multi-validate]");
+    const resetButton = modal.querySelector("[data-multi-reset]");
+    const update = () => {
+      validateButton.disabled = selected.size === 0;
+      resetButton.disabled = selected.size === 0;
+    };
+    modal.querySelectorAll("[data-multi-choice]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const index = Number(button.dataset.multiChoice);
+        if (selected.has(index)) {
+          selected.delete(index);
+          button.classList.remove("picked");
+        } else {
+          selected.add(index);
+          button.classList.add("picked");
+        }
+        update();
+      });
+    });
+    resetButton.addEventListener("click", () => {
+      selected.clear();
+      modal.querySelectorAll("[data-multi-choice]").forEach((button) => button.classList.remove("picked"));
+      update();
+    });
+    validateButton.addEventListener("click", () => {
+      const correct = challenge.choices.every((choice, index) => choice.correct === selected.has(index));
+      resolveChallenge(modal, challenge, {
+        correct,
+        feedback: correct ? challenge.successFeedback : challenge.failureFeedback
+      });
+    });
+    update();
+  }
+
+  function bindMatchingEvents(modal, challenge) {
+    let activeLeft = null;
+    const matches = {};
+    const status = modal.querySelector("[data-match-status]");
+    const validateButton = modal.querySelector("[data-match-validate]");
+    const resetButton = modal.querySelector("[data-match-reset]");
+    const update = () => {
+      const count = Object.keys(matches).length;
+      validateButton.disabled = count !== challenge.pairs.length;
+      resetButton.disabled = count === 0 && activeLeft === null;
+      if (status) {
+        status.textContent = activeLeft === null
+          ? `${t("matchingHint")} ${count}/${challenge.pairs.length}`
+          : t("matchingTarget", { item: challenge.pairs[activeLeft]?.left || "" });
+      }
+    };
+    modal.querySelectorAll("[data-match-left]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button.disabled) return;
+        activeLeft = Number(button.dataset.matchLeft);
+        modal.querySelectorAll("[data-match-left]").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        update();
+      });
+    });
+    modal.querySelectorAll("[data-match-right]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button.disabled) return;
+        if (activeLeft === null) {
+          showToast(t("matchingPickWordToast"));
+          return;
+        }
+        const rightIndex = Number(button.dataset.matchRight);
+        matches[activeLeft] = rightIndex;
+        const leftButton = modal.querySelector(`[data-match-left="${activeLeft}"]`);
+        leftButton?.classList.add("picked");
+        if (leftButton) leftButton.disabled = true;
+        button.classList.add("picked");
+        button.disabled = true;
+        activeLeft = null;
+        modal.querySelectorAll("[data-match-left]").forEach((item) => item.classList.remove("active"));
+        update();
+      });
+    });
+    resetButton.addEventListener("click", () => {
+      activeLeft = null;
+      Object.keys(matches).forEach((key) => delete matches[key]);
+      modal.querySelectorAll("[data-match-left], [data-match-right]").forEach((button) => {
+        button.disabled = false;
+        button.classList.remove("active", "picked");
+      });
+      update();
+    });
+    validateButton.addEventListener("click", () => {
+      const correct = challenge.pairs.every((_, index) => matches[index] === index);
+      resolveChallenge(modal, challenge, {
+        correct,
+        feedback: correct ? challenge.successFeedback : challenge.failureFeedback
+      });
+    });
+    update();
+  }
+
+  function bindFolderSortEvents(modal, challenge) {
+    let activeItem = null;
+    const assignments = {};
+    const status = modal.querySelector("[data-folder-status]");
+    const validateButton = modal.querySelector("[data-sort-validate]");
+    const resetButton = modal.querySelector("[data-sort-reset]");
+    const folderLabels = new Map((challenge.folders || []).map((folder) => [folder.id, folder.label]));
+    const update = () => {
+      const count = Object.keys(assignments).length;
+      validateButton.disabled = count !== challenge.items.length;
+      resetButton.disabled = count === 0 && activeItem === null;
+      if (status) {
+        status.textContent = activeItem === null
+          ? `${t("folderHint")} ${t("folderSortedCount", { count, total: challenge.items.length })}`
+          : t("folderTarget", { item: challenge.items[activeItem]?.label || "" });
+      }
+      challenge.items.forEach((_, index) => {
+        const itemButton = modal.querySelector(`[data-sort-item="${index}"]`);
+        const assignmentLabel = modal.querySelector(`[data-sort-assignment="${index}"]`);
+        const assignedFolder = assignments[index];
+        itemButton?.classList.toggle("picked", Boolean(assignedFolder));
+        itemButton?.classList.toggle("active", activeItem === index);
+        if (assignmentLabel) assignmentLabel.textContent = assignedFolder ? folderLabels.get(assignedFolder) || assignedFolder : t("folderUnsorted");
+      });
+    };
+    modal.querySelectorAll("[data-sort-item]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeItem = Number(button.dataset.sortItem);
+        modal.querySelectorAll("[data-sort-item]").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        update();
+      });
+    });
+    modal.querySelectorAll("[data-sort-folder]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (activeItem === null) {
+          showToast(t("folderPickItemToast"));
+          return;
+        }
+        const folder = challenge.folders[Number(button.dataset.sortFolder)];
+        assignments[activeItem] = folder.id;
+        activeItem = null;
+        modal.querySelectorAll("[data-sort-folder]").forEach((item) => item.classList.remove("active", "picked"));
+        update();
+      });
+    });
+    resetButton.addEventListener("click", () => {
+      activeItem = null;
+      Object.keys(assignments).forEach((key) => delete assignments[key]);
+      modal.querySelectorAll("[data-sort-item], [data-sort-folder]").forEach((button) => button.classList.remove("active", "picked"));
+      update();
+    });
+    validateButton.addEventListener("click", () => {
+      const correct = challenge.items.every((item, index) => assignments[index] === item.target);
+      resolveChallenge(modal, challenge, {
+        correct,
+        feedback: correct ? challenge.successFeedback : challenge.failureFeedback
+      });
+    });
+    update();
+  }
+
+  function bindWordPuzzleEvents(modal, challenge) {
+    const cells = [...modal.querySelectorAll("[data-word-cell]")];
+    const validateButton = modal.querySelector("[data-word-validate]");
+    const resetButton = modal.querySelector("[data-word-reset]");
+    const values = {};
+    let activeCell = cells.length ? Number(cells[0].dataset.wordCell) : null;
+
+    const activate = (index) => {
+      activeCell = index;
+      cells.forEach((cell) => cell.classList.toggle("active", Number(cell.dataset.wordCell) === activeCell));
+    };
+
+    const update = () => {
+      cells.forEach((cell) => {
+        const index = Number(cell.dataset.wordCell);
+        const letter = values[index] || "";
+        const label = modal.querySelector(`[data-word-cell-letter="${index}"]`);
+        if (label) label.textContent = letter;
+        cell.classList.toggle("picked", Boolean(letter));
+        cell.classList.toggle("active", index === activeCell);
+      });
+      const filled = cells.every((cell) => values[Number(cell.dataset.wordCell)]);
+      if (validateButton) validateButton.disabled = !filled || !cells.length;
+      if (resetButton) resetButton.disabled = Object.keys(values).length === 0;
+    };
+
+    const moveToNextEmpty = () => {
+      const currentPosition = cells.findIndex((cell) => Number(cell.dataset.wordCell) === activeCell);
+      const ordered = currentPosition >= 0 ? cells.slice(currentPosition + 1).concat(cells.slice(0, currentPosition + 1)) : cells;
+      const next = ordered.find((cell) => !values[Number(cell.dataset.wordCell)]);
+      if (next) activate(Number(next.dataset.wordCell));
+    };
+
+    const putLetter = (letter) => {
+      if (activeCell === null) {
+        showToast(t("wordPuzzlePickCellToast"));
+        return;
+      }
+      values[activeCell] = String(letter || "").toUpperCase().slice(0, 1);
+      moveToNextEmpty();
+      update();
+    };
+
+    cells.forEach((cell) => {
+      cell.addEventListener("click", () => activate(Number(cell.dataset.wordCell)));
+    });
+    modal.querySelectorAll("[data-word-letter]").forEach((button) => {
+      button.addEventListener("click", () => putLetter(button.dataset.wordLetter));
+    });
+    modal.addEventListener("keydown", (event) => {
+      if (event.key === "Backspace" && activeCell !== null) {
+        delete values[activeCell];
+        update();
+        return;
+      }
+      if (/^[a-z]$/i.test(event.key)) {
+        putLetter(event.key);
+      }
+    });
+    resetButton?.addEventListener("click", () => {
+      Object.keys(values).forEach((key) => delete values[key]);
+      activeCell = cells.length ? Number(cells[0].dataset.wordCell) : null;
+      update();
+    });
+    validateButton?.addEventListener("click", () => {
+      const correct = cells.every((cell) => {
+        const index = Number(cell.dataset.wordCell);
+        return values[index] === cell.dataset.wordAnswer;
+      });
+      resolveChallenge(modal, challenge, {
+        correct,
+        feedback: correct ? challenge.successFeedback : challenge.failureFeedback
+      });
+    });
+    update();
+  }
+
+  function bindClozeEvents(modal, challenge) {
+    const selected = [];
+    const validateButton = modal.querySelector("[data-cloze-validate]");
+    const resetButton = modal.querySelector("[data-cloze-reset]");
+    const update = () => {
+      (challenge.answers || []).forEach((_, index) => {
+        const slot = modal.querySelector(`[data-cloze-slot="${index}"]`);
+        if (slot) slot.textContent = selected[index] || "...";
+      });
+      validateButton.disabled = selected.length !== challenge.answers.length;
+      resetButton.disabled = selected.length === 0;
+    };
+    modal.querySelectorAll("[data-cloze-word]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (selected.length >= challenge.answers.length || button.classList.contains("picked")) return;
+        selected.push(button.textContent);
+        button.classList.add("picked");
+        update();
+      });
+    });
+    resetButton.addEventListener("click", () => {
+      selected.length = 0;
+      modal.querySelectorAll("[data-cloze-word]").forEach((button) => button.classList.remove("picked"));
+      update();
+    });
+    validateButton.addEventListener("click", () => {
+      const correct = challenge.answers.every((answer, index) => selected[index] === answer);
+      resolveChallenge(modal, challenge, {
+        correct,
+        feedback: correct ? challenge.successFeedback : challenge.failureFeedback
+      });
+    });
+    update();
+  }
+
+  function bindChallengeEvents(modal, challenge) {
+    const interaction = challengeInteraction(challenge);
+    bindChoiceEvents(modal, challenge);
+    if (interaction === "sequence" || interaction === "chain") bindSequenceEvents(modal, challenge);
+    if (interaction === "multiSelect") bindMultiSelectEvents(modal, challenge);
+    if (interaction === "matching") bindMatchingEvents(modal, challenge);
+    if (interaction === "folderSort") bindFolderSortEvents(modal, challenge);
+    if (interaction === "wordGrid" || interaction === "arrowWords") bindWordPuzzleEvents(modal, challenge);
+    if (interaction === "cloze") bindClozeEvents(modal, challenge);
+  }
+
+  function openChallenge(forced, action = null, options = {}) {
+    if (!state) return false;
+    if (state.gameOver) return false;
+    if (document.querySelector(".modal-backdrop")) return false;
     if (!forced && Date.now() - state.lastChallengeAt < 18000) {
       showToast(t("noChallengeToast"));
-      return;
+      return false;
     }
     state.lastChallengeAt = Date.now();
-    const sourceChallenge = pickChallenge();
+    const sourceChallenge = pickChallenge({ preferredTypes: action?.preferredTypes });
     if (!sourceChallenge) {
       showToast(t("challengeBankToast"));
-      return;
+      return false;
     }
-    const challenge = localizeChallenge(sourceChallenge);
+    const challenge = action ? actionChallenge(localizeChallenge(sourceChallenge), action) : localizeChallenge(sourceChallenge);
+    if (options.actionCooldown) challenge.actionCooldown = true;
     const modal = document.createElement("div");
     modal.className = "modal-backdrop";
     modal.innerHTML = `
@@ -777,17 +1721,14 @@
           </div>
         </div>
         <p class="question">${escapeHtml(challenge.prompt)}</p>
+        ${renderChallengeClues(challenge)}
         ${renderChallengeInteraction(challenge)}
         <p class="challenge-bank-note">${escapeHtml(challengeStatsText())}</p>
       </section>
     `;
     document.body.appendChild(modal);
     bindChallengeEvents(modal, challenge);
-  }
-
-  function activeMissions() {
-    if (!state) return [];
-    return MISSIONS.map((mission) => ({ ...mission, done: mission.check(state) }));
+    return true;
   }
 
   function createPlayer() {
@@ -803,9 +1744,10 @@
   }
 
   function resetGame() {
-    if (state && !window.confirm(t("resetConfirm"))) return;
+    if (state && !state.gameOver && !window.confirm(t("resetConfirm"))) return;
     activeSideTab = "teams";
     localStorage.removeItem(STORAGE_KEY);
+    document.querySelectorAll(".modal-backdrop").forEach((modal) => modal.remove());
     state = null;
     rates = emptyRates();
     render();
@@ -823,6 +1765,16 @@
     localStorage.setItem(LANG_STORAGE_KEY, currentLang);
     if (state) state.lang = currentLang;
     setLanguageChrome();
+    render({ preserveScroll: true });
+  }
+
+  function setTutorialCollapsed(next) {
+    tutorialCollapsed = Boolean(next);
+    try {
+      localStorage.setItem(TUTORIAL_COLLAPSED_KEY, tutorialCollapsed ? "1" : "0");
+    } catch {
+      // Ignore storage failures; the button should still work for this session.
+    }
     render({ preserveScroll: true });
   }
 
@@ -913,24 +1865,32 @@
 
     const scrollPositions = options.preserveScroll ? capturePanelScroll() : null;
     setLevelTheme(state.level);
-    rates = computeRates();
+    if (!state.gameOver) syncProgression();
+    rates = state.gameOver ? emptyRates() : computeRates();
     app.innerHTML = `
       <main class="classroom-main" aria-label="${escapeHtml(t("classroomMain"))}">
         ${renderClassroomScene()}
+        ${state.gameOver ? "" : renderTutorialPopup()}
       </main>
       <aside class="side-panel" aria-label="${escapeHtml(t("sidePanel"))}">
         ${renderSidePanel()}
       </aside>
       <section class="wide-notes" aria-label="${escapeHtml(t("notesPanel"))}">
-        ${renderTodo()}
+        ${renderCampaignPanel("wide-campaign")}
         ${renderJournal()}
         <button class="reset-corner" type="button" data-new-game title="${escapeHtml(t("resetTitle"))}">${escapeHtml(t("resetButton"))}</button>
       </section>
+      ${state.gameOver ? renderGameOverModal() : ""}
       <div class="toast" role="status" aria-live="polite"></div>
     `;
     bindEvents();
     restorePanelScroll(scrollPositions);
     saveState();
+    if (pendingProgressToast) {
+      const message = pendingProgressToast;
+      pendingProgressToast = null;
+      showToast(message);
+    }
   }
 
   function renderWelcome() {
@@ -973,6 +1933,29 @@
     `;
   }
 
+  function renderGameOverModal() {
+    const snapshot = state.gameOver || {};
+    const learners = Number.isFinite(snapshot.learners) ? snapshot.learners : learnerTotal();
+    const challenges = Number.isFinite(snapshot.challengesSolved) ? snapshot.challengesSolved : state.stats.challengesSolved;
+    const badges = Number.isFinite(snapshot.badges) ? snapshot.badges : state.badges;
+    return `
+      <div class="modal-backdrop game-over-backdrop">
+        <section class="modal-card game-over-card" role="dialog" aria-modal="true" aria-label="${escapeHtml(t("gameOverKicker"))}">
+          <p class="game-over-kicker">${escapeHtml(t("gameOverKicker"))}</p>
+          <h2>${escapeHtml(t("gameOverTitle"))}</h2>
+          <p class="game-over-copy">${escapeHtml(t("gameOverText"))}</p>
+          <div class="game-over-stats" aria-label="${escapeHtml(t("dashboard"))}">
+            <span>${escapeHtml(t("gameOverStatLevel", { level: state.level }))}</span>
+            <span>${escapeHtml(t("gameOverStatLearners", { count: learners }))}</span>
+            <span>${escapeHtml(t("gameOverStatChallenges", { count: challenges }))}</span>
+            <span>${escapeHtml(t("gameOverStatKnowledge", { count: badges }))}</span>
+          </div>
+          <button class="paper-button buy game-over-restart" type="button" data-new-game>${escapeHtml(t("gameOverRestart"))}</button>
+        </section>
+      </div>
+    `;
+  }
+
   function renderStatusPanel() {
     return `
       <section class="control-card player-card">
@@ -1002,7 +1985,7 @@
         <h2>${escapeHtml(t("workshopActions"))}</h2>
         ${ACTIONS.map(renderAction).join("")}
       </section>
-      ${renderTodo()}
+      ${renderCampaignPanel("wide-campaign")}
       ${renderJournal()}
     `;
   }
@@ -1158,7 +2141,7 @@
   }
 
   function resourcePill(label, value, rate, iconName) {
-    return `<div class="resource-pill"><img src="${ASSETS[iconName]}" alt="" /><span>${escapeHtml(label)}</span><strong>${format(value)}</strong><small>+${rate.toFixed(1)}/s</small></div>`;
+    return `<div class="resource-pill"><img src="${ASSETS[iconName]}" alt="" /><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatLiveValue(iconName, value))}</strong><small>${escapeHtml(formatRate(rate))}</small></div>`;
   }
 
   function bar(label, value, type) {
@@ -1182,6 +2165,41 @@
         </div>
         <div class="bar-track"><div class="bar-fill knowledge" style="width:${percent}%"></div></div>
       </div>
+    `;
+  }
+
+  function renderCampaignPanel(extraClass = "") {
+    const stages = campaignStatuses();
+    const current = currentCampaignStatus();
+    const completedStages = stages.filter((stage) => stage.done).length;
+    const finalDone = completedStages === stages.length;
+    const rewardText = current?.reward ? effectText(current.reward) : t("noEffect");
+    return `
+      <section class="campaign-card ${extraClass} ${finalDone ? "complete" : ""}" aria-label="${escapeHtml(t("campaignTitle"))}">
+        <div class="campaign-head">
+          <span>${escapeHtml(t("campaignTitle"))}</span>
+          <strong>${completedStages}/${stages.length}</strong>
+        </div>
+        <div class="campaign-copy">
+          <h3>${escapeHtml(finalDone ? t("campaignCompleteTitle") : current.title)}</h3>
+          <p>${escapeHtml(finalDone ? t("campaignCompleteText") : current.summary)}</p>
+        </div>
+        <div class="campaign-progress">
+          <span style="width:${finalDone ? 100 : current.percent}%"></span>
+        </div>
+        <ul class="campaign-objectives">
+          ${current.objectives.map((objective) => `
+            <li class="${objective.done ? "done" : ""}">
+              <span>${escapeHtml(objective.text)}</span>
+              <strong>${escapeHtml(progressText(objective.current, objective.target))}</strong>
+            </li>
+          `).join("")}
+        </ul>
+        <div class="campaign-reward">${escapeHtml(t(finalDone ? "campaignFinishedReward" : "stageReward", { reward: rewardText }))}</div>
+        <div class="campaign-track" aria-label="${escapeHtml(t("campaignTrack"))}">
+          ${stages.map((stage, index) => `<span class="${stage.done ? "done" : ""} ${stage.id === current.id ? "active" : ""}">${index + 1}</span>`).join("")}
+        </div>
+      </section>
     `;
   }
 
@@ -1233,23 +2251,25 @@
   }
 
   function renderAction(action) {
-    const blocked = !canMeet(action.requires) || (action.cost && !canPay(action.cost));
+    const missingRequirement = !canMeet(action.requires);
+    const missingCost = action.cost && !canPay(action.cost);
+    const cooldown = actionCooldownRemaining();
+    const cooldownActive = cooldown > 0;
+    const blocked = missingRequirement || missingCost || cooldownActive;
+    const detail = missingRequirement
+      ? requirementText(action.requires)
+      : missingCost
+        ? t("actionCostLabel", { cost: costText(action.cost) })
+        : cooldownActive
+          ? t("actionCooldownLabel", { seconds: Math.ceil(cooldown / 1000) })
+          : action.cost
+            ? `${costText(action.cost)} - ${tr("actions", action, "text")}`
+            : tr("actions", action, "text");
     return `
       <button class="action-card ${blocked ? "blocked" : ""}" type="button" data-action="${action.id}" aria-disabled="${blocked}">
         <img src="${ASSETS[action.icon]}" alt="" />
-        <span><strong>${escapeHtml(tr("actions", action, "name"))}</strong><span>${escapeHtml(!canMeet(action.requires) ? requirementText(action.requires) : tr("actions", action, "text"))}</span></span>
+        <span><strong>${escapeHtml(tr("actions", action, "name"))}</strong><span>${escapeHtml(detail)}</span></span>
       </button>
-    `;
-  }
-
-  function renderTodo() {
-    return `
-      <section class="bottom-card">
-        <h2>${escapeHtml(t("todo"))}</h2>
-        <ul class="todo-list">
-          ${activeMissions().map((mission) => `<li class="${mission.done ? "done" : ""}">${mission.done ? escapeHtml(t("done")) : escapeHtml(t("todoPending"))} - ${escapeHtml(trById("missions", mission.id, "text", mission.text))}</li>`).join("")}
-        </ul>
-      </section>
     `;
   }
 
@@ -1327,7 +2347,7 @@
       return `
         <section class="pilot-section tab-section notes-tab" role="tabpanel">
           <div class="notes-tab-grid">
-            ${renderTodo()}
+            ${renderCampaignPanel("notes-campaign")}
             ${renderJournal()}
           </div>
         </section>
@@ -1424,6 +2444,96 @@
     `;
   }
 
+  function guideInstruction(step) {
+    if (!step?.kind || !step?.target) return "";
+    if (step.kind === GUIDE_TARGETS.recruit) {
+      const recruit = RECRUITS.find((item) => item.id === step.target);
+      if (!recruit) return "";
+      return t("guide.recruitInstruction", { name: tr("recruits", recruit, "name") });
+    }
+    if (step.kind === GUIDE_TARGETS.action) {
+      const action = ACTIONS.find((item) => item.id === step.target);
+      if (!action) return "";
+      return t("guide.actionInstruction", { name: tr("actions", action, "name") });
+    }
+    if (step.kind === GUIDE_TARGETS.space) {
+      const space = SPACES.find((item) => item.id === step.target);
+      if (!space) return "";
+      return t("guide.spaceInstruction", { name: tr("spaces", space, "name") });
+    }
+    if (step.kind === GUIDE_TARGETS.knowledge) {
+      const item = KNOWLEDGE.find((entry) => entry.id === step.target);
+      if (!item) return "";
+      return t("guide.knowledgeInstruction", { name: tr("knowledge", item, "name") });
+    }
+    return "";
+  }
+
+  function guideTabHint(step) {
+    if (!step?.tab) return "";
+    const tab = SIDE_TABS.find((item) => item.id === step.tab);
+    if (!tab) return "";
+    return t("guide.panelHint", { tab: tr("sideTabs", tab, "label") });
+  }
+
+  function renderTutorialPopup() {
+    const step = guideStep();
+    if (!step || step.id === "idleLoop") return "";
+    const percent = step.progress?.target ? clamp((step.progress.current / step.progress.target) * 100, 0, 100) : 0;
+    const progress = step.progress ? progressText(step.progress.current, step.progress.target) : "";
+    const goal = progress ? `${step.goal.replace(/[.!?]$/, "")} (${progress})` : step.goal;
+    const instruction = guideInstruction(step);
+    const tabHint = guideTabHint(step);
+    if (tutorialCollapsed) {
+      return `
+        <section class="tutorial-popup collapsed" role="status" aria-live="polite" aria-label="${escapeHtml(t("guide.title"))}">
+          <button class="tutorial-toggle" type="button" data-toggle-tutorial="open" aria-expanded="false">
+            <span>${escapeHtml(t("guide.title"))}</span>
+            <strong>${escapeHtml(t("guide.openCoach"))}</strong>
+          </button>
+        </section>
+      `;
+    }
+    return `
+      <section class="tutorial-popup" role="status" aria-live="polite" aria-label="${escapeHtml(t("guide.title"))}">
+        <div class="tutorial-top">
+          <div class="tutorial-badge">${escapeHtml(t("guide.title"))}</div>
+          <button class="tutorial-mini" type="button" data-toggle-tutorial="close" aria-expanded="true">${escapeHtml(t("guide.minimizeCoach"))}</button>
+        </div>
+        <div class="tutorial-content">
+          <div>
+            <h2>${escapeHtml(step.title)}</h2>
+            <p>${escapeHtml(step.text)}</p>
+          </div>
+          <div class="tutorial-progress" aria-hidden="true">
+            <span style="width:${percent}%"></span>
+          </div>
+          <p class="tutorial-goal">${escapeHtml(goal)}</p>
+          ${instruction ? `
+            <div class="tutorial-instruction">
+              <span>${escapeHtml(t("guide.nextStep"))}</span>
+              <strong>${escapeHtml(instruction)}</strong>
+              ${tabHint ? `<small>${escapeHtml(tabHint)}</small>` : ""}
+            </div>
+          ` : ""}
+        </div>
+        <div class="tutorial-loop" aria-label="${escapeHtml(t("guide.loopTitle"))}">
+          ${["loopRecruit", "loopProduce", "loopUpgrade", "loopChallenge"].map((key, index) => `
+            <span class="${guideLoopIndex(step) === index ? "active" : ""}">${escapeHtml(t(`guide.${key}`))}</span>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  function guideLoopIndex(step) {
+    if (!step) return 0;
+    if (step.kind === GUIDE_TARGETS.recruit) return 0;
+    if (step.kind === GUIDE_TARGETS.action && step.target !== "challenge") return 1;
+    if (step.kind === GUIDE_TARGETS.space || step.kind === GUIDE_TARGETS.knowledge) return 2;
+    return 3;
+  }
+
   function bindWelcomeEvents() {
     const input = document.querySelector("[data-player-name]");
     document.querySelector("[data-create-player]")?.addEventListener("click", createPlayer);
@@ -1454,10 +2564,15 @@
     document.querySelectorAll("[data-side-tab]").forEach((button) => button.addEventListener("click", () => setSideTab(button.dataset.sideTab)));
     document.querySelectorAll("[data-classroom-tab]").forEach((button) => button.addEventListener("click", () => setClassroomTab(button.dataset.classroomTab)));
     document.querySelectorAll("[data-open-room]").forEach((button) => button.addEventListener("click", openClassroom));
+    document.querySelectorAll("[data-toggle-tutorial]").forEach((button) => button.addEventListener("click", () => setTutorialCollapsed(button.dataset.toggleTutorial === "close")));
   }
 
   function tick() {
     if (!state?.playerName) return;
+    if (state.gameOver) {
+      rates = emptyRates();
+      return;
+    }
     const now = Date.now();
     const dt = Math.min(5, (now - state.lastTickAt) / 1000);
     state.lastTickAt = now;
@@ -1472,8 +2587,8 @@
     state.stats.totalMastery += Math.max(0, rates.mastery * dt);
 
     if (state.resources.disorder >= 100) {
-      state.resources.disorder = 70;
-      openChallenge(true);
+      triggerGameOver();
+      return;
     }
 
     if (state.resources.learners >= 1 && now - state.lastChallengeAt > 60000 && Math.random() < 0.12) {
@@ -1490,6 +2605,6 @@
   window.addEventListener("DOMContentLoaded", () => {
     bindGlobalEvents();
     render();
-    setInterval(tick, 1000);
+    setInterval(tick, TICK_INTERVAL_MS);
   });
 })();
